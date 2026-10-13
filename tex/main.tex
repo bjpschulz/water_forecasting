@@ -104,8 +104,8 @@
 
 \title{\textbf{Residential Water Consumption Forecasting\\ under Extreme Zero-Inflation}\\[1.5ex]
 \large Temporal Autocorrelation, Naive Baselines and Diagnostic Models on AMPds2}
-\author{\todo{full name}\\ Matrikelnummer: \todo{student ID}\\[1ex]
-\normalsize Code repository: \todo{public GitHub URL}}
+\author{Berzan Joshua Pascal Schulz\\ Matrikelnummer: 394486\\[1ex]
+\normalsize Code repository: \url{https://github.com/bjpschulz/water_forecasting}}
 \date{\todo{submission date}}
 
 \begin{document}
@@ -118,14 +118,21 @@
 % ==================================================
 
 Forecasting the water consumption of a single house is a time-series problem with an unusual difficulty.
-At fine temporal resolution, residential water use is not a smooth signal but a sequence of short events (a tap is opened, a toilet is flushed, a machine fills) separated by long periods without any flow.
-In the AMPds2 water-meter series \citep{makonin2016ampds} analysed here, the volume is measured \emph{minutely}, and is exactly zero in 85.5\% of the minutes of the analysis period.
+At fine temporal resolution, residential water use is not a smooth signal but a sequence of short events (a tap is opened, a toilet is flushed, a machine fills)
+separated by long periods without any flow.
+In the AMPds2 water-meter series \citep{makonin2016ampds} analysed here, the volume is measured \emph{minutely}, and is exactly zero in 85.5\% of
+the minutes of the analysis period.
 % source: output/eda/summary.json -> target_stats.zero_proportion, target_stats.quantiles.p50; output/baselines/summary.json -> valid_target_zero_share
-This extreme zero-inflation matters for both modelling and evaluation. The target distribution is far from Gaussian; the conditional mean often lies in a region that is rarely realised;
+This extreme zero-inflation matters for both modelling and evaluation. The target distribution
+\todo{WHAT DOES THIS MEAN?: is far from Gaussian; the conditional mean often lies in a region that is rarely realised;}
 and the two standard error metrics, MAE and RMSE, favour different predictors, so a model can look better or worse depending on the metric.
 % Temporal dependence adds a second difficulty: consecutive minutes are statistically dependent, so any evaluation in which future information can influence past predictions would be misleading.
 
-Short-term consumption forecasts, and an understanding of what makes water use predictable, are relevant for demand management and smart-metering analytics \citep{cominola2015smartmeters}, and potentially for detecting anomalies such as leaks. Beyond the application, the dataset is a compact test case for a general machine-learning question: how to model and evaluate a target whose predictability is concentrated in rare, high-magnitude events, where the choice of training loss and evaluation metric can lead to contradictory conclusions. The project addresses four research questions:
+Short-term consumption forecasts, and an understanding of what makes water use predictable, are relevant for demand management
+and smart-metering analytics \citep{cominola2015smartmeters}, and potentially for detecting anomalies such as leaks.
+Beyond the application, the dataset is a compact test case for a general machine-learning question: how to model and evaluate
+a target whose predictability is concentrated in rare, high-magnitude events, where the choice of training loss and evaluation
+metric can lead to contradictory conclusions. The project addresses the following research questions:
 \begin{enumerate}
     \item How well can water consumption be predicted with one or two ML models?
     \item Which features are most important?
@@ -133,7 +140,13 @@ Short-term consumption forecasts, and an understanding of what makes water use p
     \item How can its effect be handled or exploited without temporal leakage?
 \end{enumerate}
 
-The prediction task is kept at the native one-minute resolution of the data; aggregating the target to coarser blocks was considered and rejected, because it changes the prediction problem rather than the model. Linear regression and LightGBM, each trained under an L2 and an L1 loss, are compared with naive baselines on a chronological validation split. A feature ablation fixes the final feature set, a grouped TreeSHAP analysis and a residual autocorrelation check follow, and the final models are evaluated once on the test split. Each methodological choice was based on an experiment on the validation split rather than fixed in advance.
+The prediction task is kept at the native one-minute resolution of the data;
+aggregating the target to coarser blocks was considered and rejected, because it changes the
+prediction problem rather than the model. Linear regression and LightGBM \citep{ke2017lightgbm},
+each trained under an L2 and an L1 loss, are compared with naive baselines on a chronological validation split.
+A feature ablation fixes the final feature set, a grouped TreeSHAP analysis and a residual
+autocorrelation check follow, and the final models are evaluated once on the test split.
+Each methodological choice was based on an experiment on the validation split rather than fixed in advance.
 
 % ==================================================
 \chapter{Related Work}
@@ -164,18 +177,23 @@ median of the next minute is zero while its average is positive, so MAE rewards
 predicting zero, RMSE rewards predicting a small amount, and the two metrics can rank the
 same forecasts in opposite order, as will be seen later on.
 
-\paragraph{Temporal evaluation and leakage.} Random cross-validation is unsuitable for time series because it lets future observations
-into training; more generally, leakage is any use of information in training that would not be available
-at prediction time \citep{kaufman2012leakage}. It can  easily enter through careless preprocessing and feature construction,
-and must be avoided.
+\paragraph{Temporal evaluation and leakage.} Forecasting accuracy should be measured out of sample: the model
+is fitted on the earlier part of a series and evaluated on a later part it has not seen \citep{tashman2000outofsample}.
+Random cross-validation breaks this order and lets future observations into training. More generally, no information
+that would be unavailable at prediction time should enter training, including through preprocessing or feature construction.
 
-\paragraph{Gradient boosting and interpretation.} LightGBM makes gradient-boosted decision trees efficient on large datasets through histogram-based split finding and leaf-wise tree growth \citep{ke2017lightgbm,lightgbmdocs}, and supports several training objectives, among them the squared and the absolute error \citep{lightgbmdocs}. Tree ensembles can be explained with TreeSHAP \citep{lundberg2020trees}, which computes exact Shapley-value attributions of each prediction to the features in polynomial time. Whether a fitted model has left temporal structure in its residuals is usually checked with the residual autocorrelation function, either descriptively or with a portmanteau test such as the one of \citet{ljung1978}.
+\paragraph{Gradient boosting and interpretation.} LightGBM makes gradient-boosted decision trees efficient on large datasets
+through histogram-based split finding and leaf-wise tree growth \citep{ke2017lightgbm,lightgbmdocs}, and supports several
+training objectives, among them the squared and the absolute error \citep{lightgbmdocs}. Tree ensembles can be explained
+with TreeSHAP \citep{lundberg2020trees}, which computes exact Shapley-value attributions of each prediction to the features
+in polynomial time. Whether a fitted model has left temporal structure in its residuals is usually checked with the residual
+autocorrelation function \citep{ljung1978}.
 
 \paragraph{Research gap and choice of model.} Within the literature reviewed here, forecasting studies work either with aggregated
 urban demand at coarse resolution \citep{donkor2014urban} or, for smart-meter data, focus on characterising and disaggregating end uses
-\citep{cominola2015smartmeters}. This project addresses the gap between them: forecasting the water consumption of a single house one minute ahead,
-at the native resolution of the meter, with a modern machine-learning model, evaluated chronologically against naive and seasonal-naive baselines,
-and reporting how the training loss and the choice between MAE and RMSE change the conclusion when most minutes are exactly zero.
+\citep{cominola2015smartmeters}. This project addresses the gap between them: forecasting the water consumption of a single house one minute ahead
+(native resolution of the meter) with a modern machine-learning model, evaluated chronologically against multiple naive baselines,
+and reporting how the training loss and the choice between MAE and RMSE change the conclusion when most minutes are zero.
 Beware that the literature search was not exhaustive in the short amount of time for the project, so the gap is stated for the works reviewed here.
 LightGBM is chosen as the main model because it captures non-linear effects and interactions of lagged values, while supporting the L2 and the L1 objective
 with otherwise identical settings; linear regression serves as a simple benchmark. Calendar features and lagged consumption are kept as separate groups
@@ -187,11 +205,25 @@ so that an ablation can attribute the predictive performance to either.
 
 \section{Dataset}
 
-The data come from AMPds2, the Almanac of Minutely Power dataset, version~2 \citep{makonin2016ampds}, which is publicly available from Harvard Dataverse and the project website \citep{makonin2015dataverse}. AMPds2 records the electricity (21 sub-meters), water and natural gas consumption of one house in Burnaby, in the Greater Vancouver area of British Columbia, Canada, once per minute for 730 days, from April 2012 to April 2014 (1{,}051{,}200 readings per meter). It also contains hourly weather data and utility bills. This project uses only one file of this collection, \path{Water_WHW.csv}, the readings of the whole-house water meter.
+The data comes from AMPds2, the Almanac of Minutely Power dataset, version~2 \citep{makonin2016ampds},
+which is publicly available from Harvard Dataverse and the project website \citep{makonin2015dataverse}.
+AMPds2 records the electricity (21 sub-meters), water and natural gas consumption of one house in Burnaby,
+in the Greater Vancouver area of British Columbia, Canada, once per minute for 730 days, from April 2012 to April 2014
+(1{,}051{,}200 readings per meter). It also contains hourly weather data and utility bills. This project uses only one file
+of this collection, \path{Water_WHW.csv}, the readings of the whole-house water meter.
 
-According to the data descriptor, the house is occupied by a family of three (two adults and a young child) and, in a rental suite in the basement, by one further adult. The whole-house meter measures both, so the series is the combined demand of two households under one roof. Faucets and showerheads are restricted to a flow of 9.5~L/min and the toilets have 6-litre dual-flush tanks; one-minute values well above 10~L/min therefore indicate several fixtures or appliances running at the same time. The family was away from 31 July to 8 August 2013, a period that falls into the training split; the rental occupant's absences were not recorded \citep{makonin2016ampds}.
+According to \citep{makonin2016ampds}, the house is occupied by a family of three (two adults and a young child)
+and, in a rental suite in the basement, by one further adult. The whole-house meter measures both,
+so the series is the combined demand of two households under one roof.
+The family was away from 31 July to 8 August 2013, during which consumption should be near zero (which later falls into the training data split).
 
-From 14 July 2012, water is measured by an Elster/Kent V100 volumetric meter that sends one pulse per 0.5~L. A data-acquisition unit counts the pulses and, once per minute (the fastest rate it supports), derives the three water columns of Table~\ref{tab:raw_columns} from them. The authors pre-cleaned the data: missing readings were filled in algorithmically and marked with a leading ``+'' on the timestamp, and 14 inconsistencies between the cumulative counter and \texttt{avg\_rate} were corrected \citep{makonin2016ampds}. Timestamps are Unix time, i.e.\ seconds since 1970-01-01 00:00 UTC.
+From 14 July 2012, after a meter replacement, water is measured by an Elster/Kent V100 volumetric meter
+that sends one pulse per 0.5~L.
+A data-acquisition unit counts the pulses and, once per minute, derives the three water columns
+of Table~\ref{tab:raw_columns} from them. The authors pre-cleaned the data: missing readings were
+filled in algorithmically and 14 inconsistencies between
+the cumulative counter and \texttt{avg\_rate} were corrected \citep{makonin2016ampds}.
+Timestamps are Unix time, i.e.\ seconds since 1970-01-01 00:00 UTC.
 
 \begin{table}[t]
 \centering
@@ -211,19 +243,42 @@ Column & Meaning \\
 
 \section{Data inspection and cleaning}
 
-Data-quality checks found no missing values, a regular one-minute grid, and internal consistency between \texttt{counter} and \texttt{avg\_rate}; they are reproduced by \path{src/eda.py} and stored in \path{output/eda/summary.json}. Of the 437 readings the dataset authors filled in, 51 fall into the analysis period defined below, and only 9 of these show any flow, so they are kept as they are. Five findings shaped the analysis period and the feature design.
+The data-quality checks performed here found no missing values, a regular one-minute grid, and internal consistency between
+\texttt{counter} and \texttt{avg\_rate}, validating the claims of the authors of \citep{makonin2016ampds}.
+They are reproducable by \path{src/eda.py} and stored in \path{output/eda/summary.json}.
+Of the 437 readings the dataset authors filled in, 51 fall into the analysis period defined below,
+and only 9 of these show any flow, so they are kept as they are.
+Five findings shaped the analysis period and the feature design.
 % source: output/eda/summary.json -> raw.rows_filled_by_authors, v100_grid.rows_filled_by_authors, v100_grid.filled_rows_with_flow
 
-\paragraph{Meter replacement.} On 14 July 2012 (Unix time 1342287780) the water supply was shut off for a repair, and the original meters, which pulsed once per gallon (3.785~L), were replaced by the V100 meters with one pulse per 0.5~L, because one gallon was too coarse for the household's consumption \citep{makonin2016ampds}. Mixing both periods would mix measurement granularities. The primary analysis therefore starts at Unix time 1342310580, the first timestamp after the replacement at which every counter increment and every \texttt{avg\_rate} value is exactly zero or a multiple of 0.5 L. Rows between the replacement and this timestamp contain a one-off settling increment of 0.053 L and are kept only to document the meter change. The cleaned V100 series has 900{,}417 rows.
+\paragraph{Analysis period.} On 14 July 2012 (Unix time 1342287780) the water supply
+was shut off for a repair, and the original meters, which pulsed once per gallon (3.785~L),
+were replaced by the V100 meters with one pulse per 0.5~L, because one gallon was too coarse for the
+household's consumption \citep{makonin2016ampds}. Mixing both periods would mix measurement granularities.
+The primary analysis therefore starts at Unix time 1342310580, the first timestamp after the replacement
+at which every counter increment and every \texttt{avg\_rate} value is exactly zero or a multiple of 0.5 L.
+Rows between the replacement and this timestamp contain a one-off settling increment of 0.053 L and are
+kept only to document the meter change. The cleaned V100 series has 900{,}417 rows.
 % source: output/eda/summary.json -> meter_transition, v100_grid.n_rows
 
-\paragraph{Time zone.} \texttt{unix\_ts} is Unix time in UTC \citep{makonin2016ampds}, and the house lies in the time zone America/\-Vancouver. Calendar features are therefore computed from local time, since the UTC-derived hour would rotate the diurnal profile by 7--8 hours. The local timestamp is non-unique across the daylight-saving fall-back and skips the spring-forward hour, so it is never used as an index.
+\paragraph{Time zone.} \texttt{unix\_ts} is Unix time in UTC \citep{makonin2016ampds},
+and the house lies in the time zone America/\-Vancouver. Calendar features are therefore computed from local time,
+since the UTC-derived hour would shift the clock by 7--8 hours. The local timestamp is
+non-unique across the daylight-saving fall-back and skips the spring-forward hours (shifts from summer to winter time and vice-verca),
+so it is never used as an index.
 
-\paragraph{Redundant counter.} The cumulative counter is redundant with the target (\texttt{avg\_rate} equals the counter difference to about $10^{-11}$~L) and is not used as a model input.
+\paragraph{Target definition.} The forecasting target is \texttt{avg\_rate}, the volume consumed in each one-minute interval (L/min).
+Of the other two water columns (Table~\ref{tab:raw_columns}), the cumulative counter is redundant with it: \texttt{avg\_rate}
+equals the counter difference to about $10^{-11}$~L, so the counter serves only as a consistency check and not as a model input.
+\texttt{inst\_rate} is an instantaneous flow-rate estimate that the data-acquisition unit derives from the same meter pulses \citep{makonin2016ampds}.
 
-\paragraph{Target structure and autocorrelation.} A water-use event is a maximal run of consecutive minutes with \texttt{avg\_rate} $>0$. The analysis period contains 48{,}987 events, 78.3 per day on average, with a mean duration of 2.7 minutes (median 2); the median event volume is 3.5~L, and the maximum one-minute value is 35 L/min.
+\paragraph{Target structure and autocorrelation.} A water-use event is a maximal run of consecutive minutes with \texttt{avg\_rate} $>0$.
+The analysis period contains 48{,}987 events, 78.3 per day on average, with a mean duration of 2.7 minutes (median 2);
+the median event volume is 3.5~L, and the maximum one-minute value is 35 L/min.
 % source: output/eda/summary.json -> events, target_stats.max
-The autocorrelation function (Figure~\ref{fig:acf}) is highest at the shortest lags (0.68 at lag 1, 0.14 at lag 15), decays slowly to 0.06 at 60 minutes, and shows repeated bumps at multiples of one day, with values of 0.077 at 1440 and 0.087 at 10080 minutes. These observations motivated the lag set below.
+The autocorrelation function (Figure~\ref{fig:acf}) is highest at the shortest lags (0.68 at lag 1, 0.14 at lag 15),
+decays slowly to 0.06 at 60 minutes, and shows repeated bumps at multiples of one day, with values of 0.077 at 1440 and 0.087
+at 10080 minutes. These observations motivated the lag feature set.
 % source: output/eda/summary.json -> acf.candidate_lags
 
 \begin{figure}[t]
@@ -254,11 +309,16 @@ The autocorrelation function (Figure~\ref{fig:acf}) is highest at the shortest l
 \end{figure}
 % source: output/eda/figs/hour_profile.png, output/eda/figs/dow_profile.png
 
+
+\newpage
 \section{Feature construction}
 
-All features are deterministic row-wise transforms, either backward shifts of the target or functions of the timestamp. The table can therefore be built on the full series before splitting without leakage; anything fitted to the target stays downstream of the split. Table~\ref{tab:features} lists the candidate feature set; the ablation (Section~\ref{sec:ablation_protocol}) settles the subset used by the final model (Section~\ref{sec:final_features}).
+All features are deterministic row-wise transforms, either backward shifts of the target or functions of the timestamp.
+The table can therefore be built on the full time series before splitting into train/validation/test set without leakage;
+anything fitted to the target stays downstream of the split. Table~\ref{tab:features} lists the candidate feature set,
+while the later ablation (Section~\ref{sec:ablation_protocol}) settles the final subset used by the final model (Section~\ref{sec:final_features}).
 
-\begin{table}[t]
+\begin{table}[h]
 \centering
 \caption{Candidate feature set. Lag $k$ at time $t$ equals \texttt{avg\_rate} at $t-k$ minutes.}
 \label{tab:features}
@@ -269,19 +329,27 @@ Group & Columns & Note \\
 Immediate lags & \texttt{lag\_1} to \texttt{lag\_15} (every lag) & steepest ACF decay \\
 Hour-scale lags & \texttt{lag\_30}, \texttt{lag\_45}, \texttt{lag\_60} & \\
 Daily/weekly lags & \texttt{lag\_1440}, \texttt{lag\_10080} & 24\,h and 168\,h ACF bumps \\
-Calendar (raw) & \texttt{hour}, \texttt{dow\_local}, \texttt{weekend} & local time; tree model \\
-Calendar (cyclic) & \texttt{hour\_sin}, \texttt{hour\_cos},\newline \texttt{dow\_sin}, \texttt{dow\_cos} & linear model \\
+Calendar (raw) & \texttt{hour}, \texttt{dow\_local}, \texttt{weekend} & local time for tree model \\
+Calendar (cyclic) & \texttt{hour\_sin}, \texttt{hour\_cos},\newline \texttt{dow\_sin}, \texttt{dow\_cos} & local time for linear model \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Rolling-window statistics are excluded because they are largely redundant with the lags they would average over. Calendar features encode known-in-advance seasonal structure (the expected value at a temporal position), whereas lags encode realised recent values; the two are complementary, and the ablation tests how much each contributes. Note that \texttt{weekend} is a deterministic function of \texttt{dow\_local}; it is kept in the table because a linear model on the cyclic day-of-week encoding cannot express it.
+Calendar features encode known-in-advance seasonal structure (the expected value at a temporal position),
+whereas lags encode realised recent values. The two are complementary and the ablation tests how much each contributes.
 
 \section{Chronological split}
 
-The series is split chronologically, never randomly (Table~\ref{tab:splits}). Validation and test boundaries lie on Monday 00:00 local time, counted back from the last Monday midnight in the series, so that weekly seasonality is fully represented in each. Validation covers 13 full weeks; test covers 13 full weeks plus the final Monday of the series. The 10{,}080 leading rows with undefined lag features are excluded from the training split. Because of daylight-saving time, the validation window contains 131{,}100 one-minute rows rather than $13\cdot7\cdot1440=131{,}040$ (the repeated hour at the fall-back), and the test window skips the spring-forward hour. The validation split was used for all model and feature decisions; the test split was used once, for the final evaluation (Section~\ref{sec:test}).
+The series is split chronologically (Table~\ref{tab:splits}).
+Validation and test boundaries lie on Monday 00:00 local time,
+so that weekly seasonality is fully represented in each.
+Validation covers 13 full weeks and test covers 13 full weeks plus the final Monday of the series.
+The 10{,}080 leading rows with undefined lag features are excluded from the training split.
+Because of daylight-saving time, the validation window contains 131{,}100 one-minute rows rather than
+$13\cdot7\cdot1440=131{,}040$ (the repeated hour), and the test window skips the spring-forward hour.
+The validation split was used for all model and feature decisions, while the test split was used only once, for the final evaluation (Section~\ref{sec:test}).
 
-\begin{table}[t]
+\begin{table}[h]
 \centering
 \caption{Chronological split (local time, America/Vancouver).}
 \label{tab:splits}
@@ -306,7 +374,14 @@ Models are compared by the mean absolute error and the root mean squared error o
 \qquad
 \mathrm{RMSE}=\sqrt{\frac1n\sum_{t}(y_t-\hat y_t)^2},
 \end{equation}
-both in L/min. Among constant predictions, MAE is minimised by the median of the target and RMSE by its mean. With a median of zero, always-zero is the MAE-optimal constant and always-mean the RMSE-optimal constant, so both metrics are compared against both constants. No model is ranked on a single metric. A scaled error such as MASE \citep{hyndman2006accuracy} is not used: with a single series at a single fixed resolution, it would only divide the MAE by a constant. The share of exactly-zero predictions is reported alongside, since it shows whether a model behaves like a zero-or-flow classifier.
+both in L/min. Along side them, the share of exactly-zero predictions is reported.
+A scaled error such as MASE \citep{hyndman2006accuracy} is not used: with a single
+series at a single fixed resolution, it would only divide the MAE by a constant. 
+
+Among constant predictors, MAE is minimised by the median of the target and RMSE by its mean.
+Therefore, always-zero is the MAE-optimal constant and always-mean the RMSE-optimal constant,
+and both are included in the naive baselines any model must beat.
+
 
 \section{Naive baselines}
 
@@ -318,18 +393,26 @@ Five fixed rules require no fitting and are evaluated on the validation split:
 \text{seasonal-naive (daily):}\quad & \hat y_t = y_{t-1440},\\
 \text{seasonal-naive (weekly):}\quad & \hat y_t = y_{t-10080}.
 \end{align}
-The mean uses the training split only. Seasonal lags are fixed UTC-minute row lags, matching the textbook definition of seasonal-naive, and are read from the feature table's lag columns. On the days of a daylight-saving change, a lag of 1440 minutes therefore points to a local time one hour earlier or later than the same clock time on the previous day. The training-set mean is 0.574~L/min.
+The always-mean uses the mean of the training split of 0.574~L/min.
+Lags baselines (persistence, seasonal-naive daily, weekly)
+are fixed UTC-minute row lags (they don't respect DST transition)
+and are read from the  previously constructed feature table's lag columns.
 % source: output/baselines/summary.json -> train_target_mean
 
 \section{Diagnostic models}
 \label{sec:diagnostic}
 
-Two model classes are fitted on the training split with the calendar and full lag feature set (all lags of Table~\ref{tab:features}) and evaluated on the validation split. They are diagnostic, meant to show whether the features let a model clear the naive floor by a real margin, not final tuned models. Each class is fitted under two training losses, an L2 loss (targeting the conditional mean) and an L1 loss (targeting the conditional median), giving a two-by-two design of model class and loss in which features, split, hyperparameters and seed are identical.
+Two models are fitted on the training split with the calendar and full lag feature set (all lags of Table~\ref{tab:features}) and evaluated on the validation split. They are diagnostic, meant to show whether the features let a model clear the naive floor by a real margin, not final tuned models. Each class is fitted under two training losses, an L2 loss (targeting the conditional mean) and an L1 loss (targeting the conditional median), giving a two-by-two design of model class and loss in which features, split, hyperparameters and seed are identical.
 
 \paragraph{Linear regression.} Ordinary least squares (L2) and median regression (L1, statsmodels \texttt{QuantReg} with $q=0.5$) on the cyclic calendar features, the weekend indicator and the twenty lags.
 
-\paragraph{LightGBM.} A gradient-boosted decision-tree regressor. Trees are added sequentially, each fitted to the errors of the current ensemble, using histogram-based, leaf-wise tree growth. It captures non-linear effects and feature interactions. The configuration is untuned: 100 trees, 31 leaves per tree, learning rate 0.1, random seed 42, on the raw calendar features and the twenty lags, with the objectives \texttt{regression\_l2} and \texttt{regression\_l1}.
-% source: src/core/config.py (LGBM_PARAMS, LGBM_OBJECTIVES)
+\paragraph{LightGBM.} A gradient-boosted decision-tree regressor. Trees are added sequentially,
+each fitted to the errors of the current ensemble, using histogram-based, leaf-wise tree growth.
+It captures non-linear effects and feature interactions. The configuration is untuned:
+LightGBM's default settings \citep{lightgbmdocs} (100 trees, 31 leaves per tree, learning rate 0.1,
+all other parameters at their defaults), with a fixed random seed of 42 for reproducibility,
+on the raw calendar features and the twenty lags, with the objectives \texttt{regression\_l2} and \texttt{regression\_l1}.
+% source: src/core/config.py (LGBM_PARAMS, LGBM_OBJECTIVES); defaults checked against LightGBM 4.7.0
 
 LightGBM was also run once with a Huber and a Poisson objective; both were dropped as loss-shape variants that answer no research question (the Huber scale parameter is arbitrary, and the Poisson objective is a count-data convenience on a target on a 0.5~L grid).
 
