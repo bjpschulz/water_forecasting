@@ -1,8 +1,8 @@
 import numpy as np
 import pandas as pd
 
-from core.config import LAGS
-from core.features import add_calendar, add_lags
+from core.config import CFG
+from build_features import add_calendar, add_lags
 
 
 def _series(n: int) -> pd.DataFrame:
@@ -13,12 +13,12 @@ def _series(n: int) -> pd.DataFrame:
 
 
 def test_add_lags_is_backward_shift():
-    source = _series(max(LAGS) + 5)  # longer than the largest lag, so every column is compared
+    source = _series(max(CFG.lags) + 5)  # longer than the largest lag, so every column is compared
     result = add_lags(source)
 
     pd.testing.assert_series_equal(result["avg_rate"], source["avg_rate"])
     expected = source["avg_rate"].to_numpy()
-    for k in LAGS:
+    for k in CFG.lags:
         values = result[f"lag_{k}"].to_numpy()
         assert np.array_equal(values[k:], expected[:-k]), f"lag_{k} is not a backward shift by {k}"
         assert result[f"lag_{k}"].isna().sum() == k, f"lag_{k} should have exactly {k} warm-up NaNs"
@@ -26,7 +26,7 @@ def test_add_lags_is_backward_shift():
 
 def test_lags_do_not_see_the_future():
     # Changing the target from row t onward must not change any feature before row t.
-    source = _series(max(LAGS) + 50)
+    source = _series(max(CFG.lags) + 50)
     t = len(source) - 20
     changed = source.copy()
     changed.iloc[t:, 0] = -999.0

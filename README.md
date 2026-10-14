@@ -16,12 +16,10 @@ src/
   core/                 shared, importable functionality
     config.py           paths, lag/feature sets, final features, LightGBM settings
     data.py             load the feature table, chronological split
-    features.py         lag and calendar features
-    naive.py            the five naive baselines
     evaluation.py       MAE / RMSE / zero share, JSON summaries
   eda.py ... test_evaluation.py   one script per pipeline step (table below)
   plot_predictions.py   plots of saved predictions
-tests/                  unit tests for src/core
+tests/                  unit tests (feature construction, chronological split)
 run_all.py              runs all steps in order
 ```
 

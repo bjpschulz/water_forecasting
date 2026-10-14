@@ -8,20 +8,33 @@ Output: output/baselines/summary.json and validation_predictions.parquet
 import numpy as np
 import pandas as pd
 
-from core.config import OUTPUT_DIR, TARGET
+from core.config import CFG
 from core.data import describe_splits, load_features, split_series
 from core.evaluation import score, write_summary
-from core.naive import DEFINITIONS, naive_forecasts
 
-OUT_DIR = OUTPUT_DIR / "baselines"
+OUT_DIR = CFG.output_dir / "baselines"
+DEFINITIONS = {
+    "always_zero": "Predict 0 L/min for every row",
+    "always_mean": "Predict the mean avg_rate of the fitting data",
+    "persistence": "Predict avg_rate from 1 UTC-minute earlier",
+    "seasonal_naive_daily": "Predict avg_rate from 1,440 UTC-minute rows earlier",
+    "seasonal_naive_weekly": "Predict avg_rate from 10,080 UTC-minute rows earlier",
+}
 
 
 def run(splits: dict[str, pd.DataFrame]) -> tuple[dict, pd.DataFrame]:
     """Score every baseline on the validation split; return the summary and the predictions."""
     valid = splits["valid"]
-    y_valid = valid[TARGET].to_numpy(dtype=np.float64)
-    train_mean = float(splits["train"][TARGET].mean())
-    preds = naive_forecasts(valid, train_mean)
+    y_valid = valid[CFG.target].to_numpy(dtype=np.float64)
+    train_mean = float(splits["train"][CFG.target].mean())
+    preds = {
+        "always_zero": np.zeros(len(valid)),
+        "always_mean": np.full(len(valid), train_mean),
+        # lag_k[t] == avg_rate[t-k] is guaranteed by build_features, so the lag baselines are read from it.
+        "persistence": valid["lag_1"].to_numpy(dtype=np.float64),
+        "seasonal_naive_daily": valid["lag_1440"].to_numpy(dtype=np.float64),
+        "seasonal_naive_weekly": valid["lag_10080"].to_numpy(dtype=np.float64),
+    }
 
     summary = {
         "split": "validation",

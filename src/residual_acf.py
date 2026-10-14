@@ -15,31 +15,31 @@ import numpy as np
 import pandas as pd
 from statsmodels.tsa.stattools import acf
 
-from core.config import FINAL_FEATURES, LAGS, LGBM_OBJECTIVES, LGBM_PARAMS, LOSSES, OUTPUT_DIR
+from core.config import CFG
 from core.data import load_features, split_series, xy
 from core.evaluation import write_summary
 
-OUT_DIR = OUTPUT_DIR / "residual_acf"
+OUT_DIR = CFG.output_dir / "residual_acf"
 PLOT_MAX_LAG = 60
 
 
 def acf_curve(x: np.ndarray) -> np.ndarray:
-    """Sample ACF of x for lags 0..max(LAGS)."""
-    return acf(x, nlags=max(LAGS), fft=True)
+    """Sample ACF of x for lags 0..max(CFG.lags)."""
+    return acf(x, nlags=max(CFG.lags), fft=True)
 
 
 def at_lags(curve: np.ndarray) -> dict[str, float]:
     """Pick the candidate lags out of an ACF curve."""
-    return {str(k): float(curve[k]) for k in LAGS}
+    return {str(k): float(curve[k]) for k in CFG.lags}
 
 
 def run(splits: dict[str, pd.DataFrame]) -> tuple[dict, dict[str, np.ndarray]]:
     """Fit both losses on train; return the summary and the full ACF curves (target first)."""
-    X_train, y_train = xy(splits["train"], FINAL_FEATURES)
-    X_valid, y_valid = xy(splits["valid"], FINAL_FEATURES)
+    X_train, y_train = xy(splits["train"], CFG.final_features)
+    X_valid, y_valid = xy(splits["valid"], CFG.final_features)
     curves = {"target": acf_curve(y_valid)}
-    for loss in LOSSES:
-        lgbm = lgb.LGBMRegressor(objective=LGBM_OBJECTIVES[loss], **LGBM_PARAMS).fit(X_train, y_train)
+    for loss in CFG.losses:
+        lgbm = lgb.LGBMRegressor(objective=loss, **CFG.lgbm_params).fit(X_train, y_train)
         residuals = y_valid - lgbm.predict(X_valid)
         curves[f"lightgbm_{loss}"] = acf_curve(residuals)
 
@@ -85,7 +85,7 @@ def print_table(summary: dict) -> None:
     names = list(summary["residual_acf"])
     print(f"n={summary['n']}  white-noise band +-{summary['white_noise_band']:.4f}")
     print(f"{'lag':>6s} {'target':>8s} " + " ".join(f"{n:>14s}" for n in names))
-    for k in LAGS:
+    for k in CFG.lags:
         row = " ".join(f"{summary['residual_acf'][n][str(k)]:14.4f}" for n in names)
         print(f"{k:6d} {summary['target_acf'][str(k)]:8.4f} {row}")
 

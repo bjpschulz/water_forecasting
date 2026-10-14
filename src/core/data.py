@@ -1,9 +1,11 @@
 """Load the feature table and split it chronologically into train/valid/test."""
 
+from collections.abc import Sequence
+
 import numpy as np
 import pandas as pd
 
-from core.config import FEATURES_PARQUET, LOCAL_TZ, TARGET
+from core.config import CFG
 
 VALID_WEEKS = 13
 TEST_WEEKS = 13
@@ -11,7 +13,7 @@ TEST_WEEKS = 13
 
 def load_features() -> pd.DataFrame:
     """Load the feature table (index unix_ts)."""
-    return pd.read_parquet(FEATURES_PARQUET)
+    return pd.read_parquet(CFG.features_parquet)
 
 
 def split_series(df: pd.DataFrame) -> dict[str, pd.DataFrame]:
@@ -42,13 +44,13 @@ def describe_splits(splits: dict[str, pd.DataFrame]) -> dict:
     """Rows and local-time start/end of each split, for the summaries."""
     out = {}
     for name, frame in splits.items():
-        local = pd.to_datetime(frame.index[[0, -1]], unit="s", utc=True).tz_convert(LOCAL_TZ)
+        local = pd.to_datetime(frame.index[[0, -1]], unit="s", utc=True).tz_convert(CFG.local_tz)
         out[name] = {"rows": len(frame), "start_local": local[0], "end_local": local[1]}
     return out
 
 
-def xy(frame: pd.DataFrame, features: list[str]) -> tuple[np.ndarray, np.ndarray]:
+def xy(frame: pd.DataFrame, features: Sequence[str]) -> tuple[np.ndarray, np.ndarray]:
     """Extract (X, y) as float64 arrays for a given feature list."""
-    X = frame[features].astype(np.float64).to_numpy()
-    y = frame[TARGET].to_numpy(dtype=np.float64)
+    X = frame[list(features)].astype(np.float64).to_numpy()
+    y = frame[CFG.target].to_numpy(dtype=np.float64)
     return X, y

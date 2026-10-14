@@ -133,8 +133,10 @@ never delete or rewrite one except to correct an error.
   `min_child_samples`, number of trees) on the final features changed
   validation MAE/RMSE negligibly, with every optimum on the grid edge, and
   does not bear on any research question. The final LightGBM keeps the
-  Stage 3 untuned settings (`core/config.py: LGBM_PARAMS`). Run once and
-  then removed; the report states this in one line.
+  Stage 3 untuned settings: LightGBM's library defaults (100 trees, 31 leaves,
+  learning rate 0.1, checked against LightGBM 4.7.0) plus seed 42
+  (`core/config.py: CFG.lgbm_params`). Run once and then removed; the report
+  states this in its "Excluded approaches and hyperparameter tuning" section.
 - **Both L2 and L1 losses are kept** through the final stage (importance,
   residual ACF, test evaluation). The L1/L2 trade-off is reported as found,
   with neither declared the primary model.
@@ -154,6 +156,18 @@ never delete or rewrite one except to correct an error.
   tolerance on one validation window, not a significance test. The feature
   table keeps all columns (baselines and the ACF analysis use `lag_1`,
   `lag_1440`, `lag_10080`); only the model inputs are restricted.
+- **Code layout (refactor verified byte-identical on all outputs):**
+  `src/core/` holds only `config.py` (one frozen `CFG` dataclass instance),
+  `data.py` and `evaluation.py`. Models are instantiated directly in the stage
+  scripts (LightGBM gets `objective=loss`; `l2`/`l1` are LightGBM aliases).
+  Lag/calendar construction lives in `src/build_features.py` and is tested in
+  `tests/test_build_features.py`; the five baselines are defined in both
+  `baselines.py` and `test_evaluation.py` and must stay in sync.
+- **Report presentation:** Chapters 1 and 2 use paragraphs, no sections.
+  Prediction figures show Tuesday of week 2, 16:00-22:00 local time
+  (`src/plot_predictions.py --split valid|test --week 2 --day 2 --hours 16-22`).
+  Built with pdflatex (`latexmk -pdf`, Computer Modern); the Arial lines are
+  commented out in the preamble pending the teacher's answer.
 
 ## Temporal autocorrelation
 
@@ -231,7 +245,7 @@ resolution.
 
 Fit linear regression and one quick, untuned LightGBM on calendar features
 (hour, day-of-week, weekend, cyclical encodings) plus the full 1-minute lag
-set (`config.LAGS`: 1-15, 30, 45, 60, 1440, 10080), varying only the *training loss*;
+set (`CFG.lags`: 1-15, 30, 45, 60, 1440, 10080), varying only the *training loss*;
 features, split, hyperparameters and seed stay identical (a 2x2 of model class
 x loss):
 
@@ -367,7 +381,8 @@ Two documents, two jobs — plus the academic report, a third document.
 - Make preprocessing reproducible.
 - Prefer clear, small functions over one large notebook.
 - Shared functionality lives in `src/core/`; stage scripts in `src/` import
-  only from `core`, never from each other.
+  only from `core`, never from each other. Tests may import a stage script
+  directly (`tests/test_build_features.py`).
 - Docstrings (module and function) must be concise: what it does and any
   non-obvious convention, nothing more. No essay-style documentation.
 - Hard rule: never read git commits unless ordered — saves context and usage limits.

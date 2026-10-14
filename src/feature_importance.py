@@ -10,35 +10,25 @@ import lightgbm as lgb
 import numpy as np
 import pandas as pd
 
-from core.config import (
-    FEATURES_TREE,
-    FINAL_FEATURES,
-    HOUR_SCALE,
-    IMMEDIATE,
-    LGBM_OBJECTIVES,
-    LGBM_PARAMS,
-    LOSSES,
-    OUTPUT_DIR,
-    SEASONAL,
-)
+from core.config import CFG
 from core.data import load_features, split_series, xy
 from core.evaluation import score, write_summary
 
-OUT_DIR = OUTPUT_DIR / "feature_importance"
+OUT_DIR = CFG.output_dir / "feature_importance"
 
 # Feature set -> (model columns, {group: member columns}); groups partition the columns.
 FEATURE_SETS = {
     "all_features": (
-        FEATURES_TREE,
+        CFG.features_tree,
         {
             "hour": ["hour"],
             "day_of_week": ["dow_local", "weekend"],
-            "immediate_lags": IMMEDIATE,
-            "hour_scale_lags": HOUR_SCALE,
-            "seasonal_lags": SEASONAL,
+            "immediate_lags": CFG.immediate,
+            "hour_scale_lags": CFG.hour_scale,
+            "seasonal_lags": CFG.seasonal,
         },
     ),
-    "final": (FINAL_FEATURES, {"hour": ["hour"], "immediate_lags": IMMEDIATE}),
+    "final": (CFG.final_features, {"hour": ["hour"], "immediate_lags": CFG.immediate}),
 }
 
 
@@ -57,12 +47,12 @@ def shap_groups(model, X, columns, groups) -> dict:
 def run(splits: dict[str, pd.DataFrame]) -> dict:
     """Fit each (loss, feature set) on train; score it and compute group importances on validation."""
     summary = {"split": "validation", "models": {}}
-    for loss in LOSSES:
+    for loss in CFG.losses:
         results = {}
         for set_name, (columns, groups) in FEATURE_SETS.items():
             X_train, y_train = xy(splits["train"], columns)
             X_valid, y_valid = xy(splits["valid"], columns)
-            model = lgb.LGBMRegressor(objective=LGBM_OBJECTIVES[loss], **LGBM_PARAMS).fit(X_train, y_train)
+            model = lgb.LGBMRegressor(objective=loss, **CFG.lgbm_params).fit(X_train, y_train)
             results[set_name] = {
                 "valid": score(y_valid, model.predict(X_valid)),
                 "groups": shap_groups(model, X_valid, columns, groups),

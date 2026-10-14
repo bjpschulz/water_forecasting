@@ -10,11 +10,11 @@ Output: output/feature_ablation/summary.json
 import lightgbm as lgb
 import pandas as pd
 
-from core.config import HOUR_SCALE, IMMEDIATE, LAG_COLS, LGBM_OBJECTIVES, LGBM_PARAMS, LOSSES, OUTPUT_DIR, SEASONAL
+from core.config import CFG
 from core.data import load_features, split_series, xy
 from core.evaluation import score, write_summary
 
-OUT_DIR = OUTPUT_DIR / "feature_ablation"
+OUT_DIR = CFG.output_dir / "feature_ablation"
 
 CALENDAR_SETS = {
     "all_calendar": ["hour", "dow_local", "weekend"],
@@ -26,19 +26,19 @@ CALENDAR_SETS = {
     "dow_weekend": ["dow_local", "weekend"],
 }
 LAG_SETS = {
-    "all": LAG_COLS,
-    "no_seasonal": IMMEDIATE + HOUR_SCALE,
-    "immediate": IMMEDIATE,
-    "sparse_hour": ["lag_1", "lag_15", *HOUR_SCALE],
-    "seasonal": SEASONAL,
+    "all": CFG.lag_cols,
+    "no_seasonal": [*CFG.immediate, *CFG.hour_scale],
+    "immediate": CFG.immediate,
+    "sparse_hour": ["lag_1", "lag_15", *CFG.hour_scale],
+    "seasonal": CFG.seasonal,
     "persistence": ["lag_1"],
 }
 ABLATIONS = {
     "calendar_only": CALENDAR_SETS,
-    "calendar_plus_all_lags": {f"{n} + all_lags": c + LAG_COLS for n, c in CALENDAR_SETS.items()},
+    "calendar_plus_all_lags": {f"{n} + all_lags": [*c, *CFG.lag_cols] for n, c in CALENDAR_SETS.items()},
     "lags_with_hour": {
-        **{n: ["hour"] + c for n, c in LAG_SETS.items()},
-        "all_lags_without_hour": LAG_COLS,  # reference
+        **{n: ["hour", *c] for n, c in LAG_SETS.items()},
+        "all_lags_without_hour": CFG.lag_cols,  # reference
     },
 }
 
@@ -48,12 +48,12 @@ def run(splits: dict[str, pd.DataFrame]) -> dict:
     summary = {"split": "validation"}
     for ablation, sets in ABLATIONS.items():
         summary[ablation] = {}
-        for loss in LOSSES:
+        for loss in CFG.losses:
             results = {}
             for name, columns in sets.items():
                 X_train, y_train = xy(splits["train"], columns)
                 X_valid, y_valid = xy(splits["valid"], columns)
-                lgbm = lgb.LGBMRegressor(objective=LGBM_OBJECTIVES[loss], **LGBM_PARAMS).fit(X_train, y_train)
+                lgbm = lgb.LGBMRegressor(objective=loss, **CFG.lgbm_params).fit(X_train, y_train)
                 preds = lgbm.predict(X_valid)
                 results[name] = {"n_features": len(columns), **score(y_valid, preds)}
             summary[ablation][f"lightgbm_{loss}"] = results

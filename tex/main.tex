@@ -410,7 +410,7 @@ non-linear effects and feature interactions. The configuration is untuned:
 LightGBM's default settings \citep{lightgbmdocs} (100 trees, 31 leaves per tree, learning rate 0.1,
 all other parameters at their defaults) are used, with a fixed random seed of 42 for reproducibility.
 on the raw calendar features and the twenty lags, with the objectives \texttt{regression\_l2} and \texttt{regression\_l1}.
-% source: src/core/config.py (LGBM_PARAMS, LGBM_OBJECTIVES); defaults checked against LightGBM 4.7.0
+% source: src/core/config.py (CFG.lgbm_params, CFG.losses; the loss names l2/l1 are LightGBM aliases of regression_l2/regression_l1); defaults checked against LightGBM 4.7.0
 
 \section{Feature ablation protocol}
 \label{sec:ablation_protocol}
@@ -509,8 +509,8 @@ settings.
 \section{Reproducibility, code and data}
 
 The code is organised as one script per pipeline stage under \path{src/}. Shared functionality
-lives in the package \path{src/core/}: paths and feature sets, data loading and the chronological split,
-feature construction, the naive baselines and scoring. Stages import only from \path{src/core/},
+lives in the package \path{src/core/}: paths and feature sets, data loading,
+the chronological split and scoring. Stages import only from \path{src/core/},
 never from each other; \path{run_all.py} runs them in order, and each writes its exact results to
 a \path{summary.json} in its own folder under \path{output/}, from which every number in this report
 is taken. Unit tests under \path{tests/} check the lag construction (including that no feature depends

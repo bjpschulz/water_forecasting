@@ -18,12 +18,12 @@ import pandas as pd
 from matplotlib.ticker import MultipleLocator
 from statsmodels.tsa.stattools import acf
 
-from core.config import LAGS, LOCAL_TZ, RAW_CSV, REPO_ROOT, V100_PARQUET
+from core.config import CFG
 from core.evaluation import to_serializable, write_summary
 
-OUT_DIR = V100_PARQUET.parent
-PARQUET_PATH = V100_PARQUET
-CSV_PATH = V100_PARQUET.with_suffix(".csv")  # twin of the parquet, for eyeballing
+OUT_DIR = CFG.v100_parquet.parent
+PARQUET_PATH = CFG.v100_parquet
+CSV_PATH = CFG.v100_parquet.with_suffix(".csv")  # twin of the parquet, for eyeballing
 FIG_DIR = OUT_DIR / "figs"
 
 V100_UNIX_TS = 1_342_287_780  # 2012-07-14: documented switch to the V100 water meter
@@ -32,7 +32,7 @@ V100_UNIX_TS = 1_342_287_780  # 2012-07-14: documented switch to the V100 water 
 # (after the swap the counter shows one single sub-pulse increment < 0.5 L, at unix_ts 1342310520, avg_rate 0.053)
 V100_CLEAN_UNIX_TS = 1_342_310_580
 
-ACF_MAX_LAG = max(LAGS)
+ACF_MAX_LAG = max(CFG.lags)
 SECONDS_PER_MINUTE = 60
 PULSE_SIZE_L = 0.5  # V100 meter pulse size, in liters
 
@@ -67,11 +67,11 @@ def load_water() -> pd.DataFrame:
     Load the raw water CSV and attach tz-aware UTC and local datetime columns, sorted by time.
     Rows the dataset authors filled in for missing readings carry a leading '+' on the timestamp.
     """
-    df = pd.read_csv(RAW_CSV, dtype={"unix_ts": str})
+    df = pd.read_csv(CFG.raw_csv, dtype={"unix_ts": str})
     df["filled_by_authors"] = df["unix_ts"].str.startswith("+")
     df["unix_ts"] = df["unix_ts"].astype(np.int64)
     df["datetime"] = pd.to_datetime(df["unix_ts"], unit="s", utc=True)
-    df["datetime_local"] = df["datetime"].dt.tz_convert(LOCAL_TZ)
+    df["datetime_local"] = df["datetime"].dt.tz_convert(CFG.local_tz)
     return df.sort_values("unix_ts").reset_index(drop=True)
 
 def check_raw(df: pd.DataFrame) -> dict:
@@ -255,7 +255,7 @@ def temporal_profiles(v100: pd.DataFrame) -> dict:
     household is in America/Vancouver, so calendar grouping must use datetime_local.
     """
     target = v100["avg_rate"]
-    out = {"timezone": LOCAL_TZ}
+    out = {"timezone": CFG.local_tz}
 
     hour = v100["datetime_local"].dt.hour
     g = target.groupby(hour)
@@ -323,7 +323,7 @@ def acf_analysis(v100: pd.DataFrame) -> dict:
 
     def at_lags(a):
         out = {}
-        for lag in LAGS:
+        for lag in CFG.lags:
             out[str(lag)] = float(a[lag]) if lag <= ACF_MAX_LAG else None
         return out
 
@@ -438,7 +438,7 @@ def make_figures(v100: pd.DataFrame, acf_result: dict, daily: pd.Series) -> None
     for ax, x_max in zip(axes, [ACF_MAX_LAG, zoom]):
         ax.axhline(0, color="black", linewidth=0.5)
         ax.set_xlabel("Lag (minutes)")
-        for lag in LAGS:
+        for lag in CFG.lags:
             if lag <= x_max:  # only mark lags inside this panel's range
                 ax.axvline(lag, color="red", linestyle=":", alpha=0.4)
     axes[1].xaxis.set_major_locator(MultipleLocator(60))  # one tick per hour
@@ -470,7 +470,7 @@ def main() -> None:
     daily = daily_volumes(v100)
     daily_stats = daily_volume_stats(daily)
     timezone = {
-        "local_timezone": LOCAL_TZ,
+        "local_timezone": CFG.local_tz,
         "unix_ts_is_true_utc": True,
     }
 
@@ -497,9 +497,9 @@ def main() -> None:
         "temporal_profiles": profiles,
         "acf": acf_for_summary,
         "artifacts": {
-            "parquet": str(PARQUET_PATH.relative_to(REPO_ROOT)),
-            "csv": str(CSV_PATH.relative_to(REPO_ROOT)),
-            "figures_dir": str(FIG_DIR.relative_to(REPO_ROOT)),
+            "parquet": str(PARQUET_PATH.relative_to(CFG.repo_root)),
+            "csv": str(CSV_PATH.relative_to(CFG.repo_root)),
+            "figures_dir": str(FIG_DIR.relative_to(CFG.repo_root)),
         },
     }
 

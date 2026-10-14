@@ -19,21 +19,21 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib.figure import Figure
 
-from core.config import LOCAL_TZ, OUTPUT_DIR
+from core.config import CFG
 
 # Split -> prediction files (joined on unix_ts) and the description used in plot titles.
 SOURCES = {
     "valid": (
-        [OUTPUT_DIR / "baselines" / "validation_predictions.parquet",
-         OUTPUT_DIR / "compare_models" / "validation_predictions.parquet"],
+        [CFG.output_dir / "baselines" / "validation_predictions.parquet",
+         CFG.output_dir / "compare_models" / "validation_predictions.parquet"],
         "validation, diagnostic models",
     ),
     "test": (
-        [OUTPUT_DIR / "test_evaluation" / "test_predictions.parquet"],
+        [CFG.output_dir / "test_evaluation" / "test_predictions.parquet"],
         "test, final models",
     ),
 }
-FIG_DIR = OUTPUT_DIR / "prediction_plots"
+FIG_DIR = CFG.output_dir / "prediction_plots"
 DEFAULT_METHODS = [
     "always_zero",
     "persistence",
@@ -115,7 +115,7 @@ def load_predictions(split: str) -> pd.DataFrame:
             raise ValueError("Prediction artifacts use different timestamps")
         predictions = pd.concat([predictions, frame.drop(columns=["unix_ts", "actual"])], axis=1)
     utc = pd.to_datetime(predictions["unix_ts"], unit="s", utc=True)
-    predictions["local_time"] = utc.dt.tz_convert(LOCAL_TZ)
+    predictions["local_time"] = utc.dt.tz_convert(CFG.local_tz)
     return predictions
 
 
@@ -136,8 +136,8 @@ def plot_predictions(predictions: pd.DataFrame, window: Window, methods: list[st
     fig, axes = plt.subplots(
         nrows, ncols, figsize=(15, 3.2 * nrows), sharex=True, sharey=True, squeeze=False
     )
-    locator = mdates.AutoDateLocator(minticks=4, maxticks=9, tz=LOCAL_TZ)
-    formatter = mdates.DateFormatter("%a %d %H:%M %Z", tz=LOCAL_TZ)
+    locator = mdates.AutoDateLocator(minticks=4, maxticks=9, tz=CFG.local_tz)
+    formatter = mdates.DateFormatter("%a %d %H:%M %Z", tz=CFG.local_tz)
 
     for ax, method in zip(axes.flat, methods):
         ax.plot(data["local_time"], data["actual"], color="tab:blue", linewidth=0.8, label="Actual")
@@ -153,7 +153,7 @@ def plot_predictions(predictions: pd.DataFrame, window: Window, methods: list[st
         ax.set_visible(False)
     for ax in axes[-1, :]:
         if ax.get_visible():
-            ax.set_xlabel(f"Local time ({LOCAL_TZ})")
+            ax.set_xlabel(f"Local time ({CFG.local_tz})")
     fig.autofmt_xdate(rotation=25, ha="right")
     fig.suptitle(f"Actual and predicted water consumption — {SOURCES[split][1]}, {window.title()}")
     fig.tight_layout()
