@@ -140,9 +140,7 @@ metric can lead to contradictory conclusions. The project addresses the followin
     \item How can its effect be handled or exploited without temporal leakage?
 \end{enumerate}
 
-The prediction task is kept at the native one-minute resolution of the data;
-aggregating the target to coarser blocks was considered and rejected, because it changes the
-prediction problem rather than the model. Linear regression and LightGBM \citep{ke2017lightgbm},
+The prediction task is kept at the native one-minute resolution of the data (Section~\ref{sec:excluded}). Linear regression and LightGBM \citep{ke2017lightgbm},
 each trained under an L2 and an L1 loss, are compared with naive baselines on a chronological validation split.
 A feature ablation fixes the final feature set, a grouped TreeSHAP analysis and a residual
 autocorrelation check follow, and the final models are evaluated once on the test split.
@@ -338,7 +336,7 @@ Calendar (cyclic) & \texttt{hour\_sin}, \texttt{hour\_cos},\newline \texttt{dow\
 Calendar features encode known-in-advance seasonal structure (the expected value at a temporal position),
 whereas lags encode realised recent values. The two are complementary and the ablation tests how much each contributes.
 
-\section{Chronological split}
+\section{Chronological data split}
 
 The series is split chronologically (Table~\ref{tab:splits}).
 Validation and test boundaries lie on Monday 00:00 local time,
@@ -407,46 +405,106 @@ Two models are fitted on the training split with the calendar and full lag featu
 \paragraph{Linear regression.} Ordinary least squares (L2) and median regression (L1, statsmodels \texttt{QuantReg} with $q=0.5$) on the cyclic calendar features, the weekend indicator and the twenty lags.
 
 \paragraph{LightGBM.} A gradient-boosted decision-tree regressor. Trees are added sequentially,
-each fitted to the errors of the current ensemble, using histogram-based, leaf-wise tree growth.
-It captures non-linear effects and feature interactions. The configuration is untuned:
+each fitted to the errors of the current ensemble, which lets the model capture
+non-linear effects and feature interactions. The configuration is untuned:
 LightGBM's default settings \citep{lightgbmdocs} (100 trees, 31 leaves per tree, learning rate 0.1,
-all other parameters at their defaults), with a fixed random seed of 42 for reproducibility,
+all other parameters at their defaults) are used, with a fixed random seed of 42 for reproducibility.
 on the raw calendar features and the twenty lags, with the objectives \texttt{regression\_l2} and \texttt{regression\_l1}.
 % source: src/core/config.py (LGBM_PARAMS, LGBM_OBJECTIVES); defaults checked against LightGBM 4.7.0
-
-LightGBM was also run once with a Huber and a Poisson objective; both were dropped as loss-shape variants that answer no research question (the Huber scale parameter is arbitrary, and the Poisson objective is a count-data convenience on a target on a 0.5~L grid).
 
 \section{Feature ablation protocol}
 \label{sec:ablation_protocol}
 
-The feature set is settled in two sequential steps, both with LightGBM under both losses. The train rows (lag warm-up rows excluded for every set), split, hyperparameters and seed are those of the diagnostic models, and each cell is a single fit scored on the validation split. Linear regression is not part of the ablation.
+To answer the research question which features are most important for the model,
+and which could therefore serve as the final feature set for the test set evaluation,
+both a feature ablation study and a feature importance analysis are performed.
+(The data split, hyperparameters and seed are the same of the diagnostic models)
 
-\paragraph{Step 1: calendar ablation.} Every non-empty subset of (hour, day of week, weekend) is fitted alone and on top of all lags, since the calendar's marginal value may differ once the target's history is available. As \texttt{weekend} is a function of \texttt{dow\_local}, it is expected to be redundant for trees; the ablation checks this.
+Onto the ablation, which is designed in two sequential steps.
+At each step, distinct features are grouped together, and for each combination of those feature groups
+(meaning certain feature groups are left out),
+the LightGBM is fitted under both L1 and L2 loss, and its performance
+w.r.t. MAE and RMSE is scored on the validation split.
+By this exlusion of feature groups during training, the marginal value of them can be qualitatively estimated.
+Note that the linear regression is not part of the ablation.
 
-\paragraph{Step 2: lag ablation.} With the calendar fixed to the hour, lag subsets are compared: all lags; no seasonal lags (lags 1--15, 30, 45, 60); immediate lags (1--15); sparse-hour lags (\texttt{lag\_1}, \texttt{lag\_15}, \texttt{lag\_30}, \texttt{lag\_45}, \texttt{lag\_60}); seasonal lags only (1440, 10080); and persistence only (\texttt{lag\_1}), the model analogue of the persistence baseline. All lags without the hour serve as a reference. The dense block of immediate lags was chosen because the autocorrelation is highest at the shortest lags and water-use events are short; comparing it with the sparse-hour set checks whether all fifteen lags are actually needed.
+\begin{itemize}
+    \item \textbf{Step 1: calendar ablation.} Every non-empty subset of (hour, day of week, weekend) is fitted alone and on top of all lags,
+since the calendar's marginal value may differ once the target's history is available.
+As \texttt{weekend} is a function of \texttt{dow\_local}, it is expected to be redundant for trees.
+    
+    \item \textbf{Step 2: lag ablation.} With the calendar fixed to the hour,
+lag subsets are compared: all lags; no seasonal lags (lags 1--15, 30, 45, 60); immediate lags (1--15);
+sparse-hour lags (\texttt{lag\_1}, \texttt{lag\_15}, \texttt{lag\_30}, \texttt{lag\_45}, \texttt{lag\_60});
+seasonal lags only (1440, 10080); and persistence only (\texttt{lag\_1}),
+the model analogue of the persistence baseline. All lags without the hour serve as a reference.
+The dense block of immediate lags was chosen because the autocorrelation is highest at the shortest
+lags and water-use events are short. Comparing it with the sparse-hour set checks whether all
+fifteen immediate lags are actually needed.
+\end{itemize}
 
-Calendar-then-lags is a coordinate-wise search, not a full grid, and assumes little interaction between the two groups. A set is judged against the best set by a practical tolerance on the metric difference; no variability estimate is computed (Section~\ref{sec:limitations}).
 
-\section{Hyperparameter tuning}
-
-% source: none; the grid was run once and removed (AGENTS.md, settled facts)
-A small LightGBM grid over the number of leaves, the minimum child size and the number of trees was run once on the final features (training split, scored on the validation split, per loss). It changed the validation scores only negligibly, with every optimum on the edge of the grid, and it bears on none of the research questions. It was therefore dropped: the final LightGBM keeps the untuned configuration of Section~\ref{sec:diagnostic}, and the final model is refitted on training plus validation with those fixed settings.
+This two-step calendar-then-lags ablation is a coordinate-wise search, not a full grid search,
+and assumes little interaction between the two groups. The assumption is supported by step 1, which fitted every
+calendar set both alone and on top of all lags and gave the same picture in both cases: the sets containing the hour
+are clearly best, and adding the day of week or the weekend indicator changes little (Section~\ref{sec:cal_results}).
+Each set is fitted once and compared with the best set; differences too small to matter in practice are treated
+as ties, since no estimate of the variability of the scores is available (Section~\ref{sec:limitations}).
 
 \section{Feature importance}
 \label{sec:importance_method}
 
-Importance is computed with TreeSHAP (LightGBM's \texttt{pred\_contrib} option), which splits each prediction exactly into one additive contribution per feature plus a constant. Both losses are fitted on the training split, and contributions are evaluated on the validation split, for two feature sets: all features (calendar and the full lag set), to cross-check the ablation, and the final set. The lags are strongly correlated, so the credit a model splits among them is arbitrary and single-lag values are unstable (for the same reason, individual linear-regression coefficients are not interpreted); importance is therefore reported per feature group (immediate lags, hour-scale lags, seasonal lags, hour, day of week with the weekend indicator), as the mean absolute value of the group's summed contributions and as its share of the total. The groups partition the features of one fitted model; they are the blocks of the ablation, but unlike the ablation's overlapping candidate sets they must not overlap.
+Importance is computed with TreeSHAP (LightGBM's \texttt{pred\_contrib} argument), which splits
+each prediction exactly into one additive contribution per feature plus a constant. For each loss,
+a LightGBM model is trained on the training split, and the contributions are computed for its
+predictions on the validation split. This is done for two feature sets: all features
+(calendar and the full lag set), to cross-check the ablation, and the final set.
+The immediate lags are strongly correlated,
+which is why importance is reported per feature group (immediate lags, hour-scale lags, seasonal lags,
+hour, day of week with the weekend indicator) as the mean absolute value of the group's summed
+contributions and as its share of the total. The groups must partition the features of the fitted model,
+meaning they are non-overlapping, unlike in the feature ablation study.
 
 \section{Residual autocorrelation}
 \label{sec:residual_method}
 
-To see how much temporal structure the final models leave unexplained, the residuals $y_t-\hat y_t$ of the final-feature LightGBM models (both losses, fitted on the training split) are computed on the validation split, and their sample autocorrelation function is evaluated at the candidate lags, next to the autocorrelation of the target itself on the same window. As a reference, a series of $n$ uncorrelated observations has a sample autocorrelation at each lag that is approximately normal with standard deviation $1/\sqrt n$, so about 95\% of values fall within the white-noise band $\pm1.96/\sqrt n$. It is a reference line, not a test: with $n=131{,}100$ it is only $\pm0.0054$, so small values lie outside it.
+To see how much temporal structure the final models leave unexplained, a LightGBM model on the final
+features is trained under each loss on the training split, and the residuals $y_t-\hat y_t$ of its predictions
+on the validation split are computed. Their sample autocorrelation function is evaluated at the candidate lags,
+next to the autocorrelation of the target itself on the same window. As a reference, a series of $n$ uncorrelated
+observations has a sample autocorrelation at each lag that is approximately normal with standard deviation $1/\sqrt n$,
+so about 95\% of values fall within the white-noise band $\pm1.96/\sqrt n$. It is a reference line, not a test: with
+$n=131{,}100$ it is only $\pm0.0054$, so small values lie outside it.
 
 \section{Test evaluation protocol}
 \label{sec:test_method}
 
 The final models were fixed before the test split was evaluated: LightGBM with the untuned configuration of Section~\ref{sec:diagnostic} and a linear benchmark (ordinary least squares and median regression), each under an L2 and an L1 loss, all on the final feature set (the hour plus lags 1--15). The hour enters the linear model as a raw integer, which it can only fit as a straight line, so the benchmark essentially compares the lag structure. The final feature set comes from the LightGBM ablation (Section~\ref{sec:ablation_protocol}). The linear model was not part of that ablation and was never scored on the validation split with these features, so the test run is its first evaluation in this configuration. All four models are fitted on the training plus validation splits (757{,}917 rows), which adds more and more recent data and changes none of the decisions already made, and scored once on the test split (132{,}420 rows) together with the five baselines. The always-mean baseline uses the mean of the same fitting data (0.561~L/min). Nothing is tuned or selected on the test split, and its result is not used to revise any earlier decision.
 % source: output/test_evaluation/summary.json -> fit_rows, n, fit_target_mean
+
+\section{Excluded approaches}
+\label{sec:excluded}
+
+Several options were considered and deliberately left out, some after a single trial run on the
+validation split. None of them bears on the research questions, and the trial runs are not reported
+in Chapter~\ref{chap:results}.
+
+\paragraph{Target aggregation.} Forecasting the volume of coarser time blocks instead of single
+minutes was tried once and rejected: it changes the prediction problem rather than the model, so
+gains over the one-minute baselines would not be comparable.
+
+\paragraph{Objective ablation.} LightGBM was also run once with a Huber and a Poisson
+objective, with the idea of a full fletched objective ablation.
+Both were dropped as loss-shape variants that don't advance the research questions.
+
+\paragraph{Hyperparameter tuning.}
+% source: none; the grid was run once and removed (AGENTS.md, settled facts)
+No hyperparameters of the final models were tuned. A small LightGBM grid over the number of leaves,
+the minimum child size and the number of trees was run once on the final features (training split,
+scored on the validation split, per loss). It changed the validation scores only negligibly, with
+every optimum on the edge of the grid, so it was dropped: the final LightGBM keeps the default
+configuration of Section~\ref{sec:diagnostic}, refitted on training plus validation with the same
+settings.
 
 \section{Reproducibility, code and data}
 
@@ -507,6 +565,7 @@ Within each model class, switching from the L2 to the L1 loss lowers the MAE and
 The weak seasonal-naive results are most likely due to event timing not repeating at the exact minute across days or weeks, so a same-minute lag mostly predicts flow at the wrong time. This concerns the same-minute lag as a point predictor, not the presence of daily and weekly structure in the ACF.
 
 \section{Calendar ablation (step 1)}
+\label{sec:cal_results}
 
 Table~\ref{tab:cal_ablation} shows the calendar ablation. Under the L1 loss all calendar-only fits are the constant zero prediction (zero share 1.0), identical to the always-zero baseline (MAE 0.5001, RMSE 1.8437), so calendar-only fits are informative only under L2.
 
