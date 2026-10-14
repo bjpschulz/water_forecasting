@@ -6,6 +6,7 @@ A group's importance is the mean |row-wise sum of its features' contributions|.
 Output: output/feature_importance/summary.json
 """
 
+import lightgbm as lgb
 import numpy as np
 import pandas as pd
 
@@ -14,13 +15,14 @@ from core.config import (
     FINAL_FEATURES,
     HOUR_SCALE,
     IMMEDIATE,
+    LGBM_OBJECTIVES,
+    LGBM_PARAMS,
     LOSSES,
     OUTPUT_DIR,
     SEASONAL,
 )
 from core.data import load_features, split_series, xy
 from core.evaluation import score, write_summary
-from core.models import train_lgbm
 
 OUT_DIR = OUTPUT_DIR / "feature_importance"
 
@@ -60,7 +62,7 @@ def run(splits: dict[str, pd.DataFrame]) -> dict:
         for set_name, (columns, groups) in FEATURE_SETS.items():
             X_train, y_train = xy(splits["train"], columns)
             X_valid, y_valid = xy(splits["valid"], columns)
-            model = train_lgbm(X_train, y_train, loss)
+            model = lgb.LGBMRegressor(objective=LGBM_OBJECTIVES[loss], **LGBM_PARAMS).fit(X_train, y_train)
             results[set_name] = {
                 "valid": score(y_valid, model.predict(X_valid)),
                 "groups": shap_groups(model, X_valid, columns, groups),

@@ -6,12 +6,14 @@ Linear L1 is median regression; only the loss differs within a model class.
 Output: output/compare_models/summary.json and validation_predictions.parquet
 """
 
+import lightgbm as lgb
 import pandas as pd
+import statsmodels.api as sm
+from sklearn.linear_model import LinearRegression
 
-from core.config import FEATURES_LINEAR, FEATURES_TREE, LOSSES, OUTPUT_DIR
+from core.config import FEATURES_LINEAR, FEATURES_TREE, LGBM_OBJECTIVES, LGBM_PARAMS, LOSSES, OUTPUT_DIR
 from core.data import load_features, split_series, xy
 from core.evaluation import score, write_summary
-from core.models import fit_lgbm, fit_linear
 
 OUT_DIR = OUTPUT_DIR / "compare_models"
 
@@ -20,11 +22,19 @@ def run(splits: dict[str, pd.DataFrame]) -> tuple[dict, pd.DataFrame]:
     """Fit every (model, loss) pair on train and score it on validation."""
     train, valid = splits["train"], splits["valid"]
     preds = {}
-    for model, features, fit in (("linear", FEATURES_LINEAR, fit_linear), ("lightgbm", FEATURES_TREE, fit_lgbm)):
-        X_train, y_train = xy(train, features)
-        X_valid, y_valid = xy(valid, features)
-        for loss in LOSSES:
-            preds[f"{model}_{loss}"] = fit(X_train, y_train, X_valid, loss)
+
+    X_train, y_train = xy(train, FEATURES_LINEAR)
+    X_valid, y_valid = xy(valid, FEATURES_LINEAR)
+    ols = LinearRegression().fit(X_train, y_train)
+    median = sm.QuantReg(y_train, sm.add_constant(X_train)).fit(q=0.5, max_iter=5000)
+    preds["linear_l2"] = ols.predict(X_valid)
+    preds["linear_l1"] = median.predict(sm.add_constant(X_valid, has_constant="add"))
+
+    X_train, y_train = xy(train, FEATURES_TREE)
+    X_valid, y_valid = xy(valid, FEATURES_TREE)
+    for loss in LOSSES:
+        lgbm = lgb.LGBMRegressor(objective=LGBM_OBJECTIVES[loss], **LGBM_PARAMS).fit(X_train, y_train)
+        preds[f"lightgbm_{loss}"] = lgbm.predict(X_valid)
 
     summary = {
         "split": "validation",

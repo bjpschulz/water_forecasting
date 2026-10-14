@@ -7,12 +7,12 @@ lag subsets with the calendar fixed to `hour`. Only the feature set varies.
 Output: output/feature_ablation/summary.json
 """
 
+import lightgbm as lgb
 import pandas as pd
 
-from core.config import HOUR_SCALE, IMMEDIATE, LAG_COLS, LOSSES, OUTPUT_DIR, SEASONAL
+from core.config import HOUR_SCALE, IMMEDIATE, LAG_COLS, LGBM_OBJECTIVES, LGBM_PARAMS, LOSSES, OUTPUT_DIR, SEASONAL
 from core.data import load_features, split_series, xy
 from core.evaluation import score, write_summary
-from core.models import fit_lgbm
 
 OUT_DIR = OUTPUT_DIR / "feature_ablation"
 
@@ -53,7 +53,8 @@ def run(splits: dict[str, pd.DataFrame]) -> dict:
             for name, columns in sets.items():
                 X_train, y_train = xy(splits["train"], columns)
                 X_valid, y_valid = xy(splits["valid"], columns)
-                preds = fit_lgbm(X_train, y_train, X_valid, loss)
+                lgbm = lgb.LGBMRegressor(objective=LGBM_OBJECTIVES[loss], **LGBM_PARAMS).fit(X_train, y_train)
+                preds = lgbm.predict(X_valid)
                 results[name] = {"n_features": len(columns), **score(y_valid, preds)}
             summary[ablation][f"lightgbm_{loss}"] = results
     return summary

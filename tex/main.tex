@@ -508,14 +508,25 @@ settings.
 
 \section{Reproducibility, code and data}
 
-The code is organised as one script per pipeline stage under \path{src/}. Shared functionality lives in the package \path{src/core/}: paths and feature sets, data loading and the chronological split, feature construction, model fitting, the naive baselines and scoring. Stages import only from \path{src/core/}, never from each other; \path{run_all.py} runs them in order, and each writes its exact results to a \path{summary.json} in its own folder under \path{output/}, from which every number in this report is taken. Unit tests under \path{tests/} check the lag construction (including that no feature depends on later values) and the chronological split. The Python environment is pinned with uv (\path{uv.lock}). The raw data file is included in the repository and can also be obtained from the AMPds2 release \citep{makonin2015dataverse}. \todo{public GitHub URL}
+The code is organised as one script per pipeline stage under \path{src/}. Shared functionality
+lives in the package \path{src/core/}: paths and feature sets, data loading and the chronological split,
+feature construction, the naive baselines and scoring. Stages import only from \path{src/core/},
+never from each other; \path{run_all.py} runs them in order, and each writes its exact results to
+a \path{summary.json} in its own folder under \path{output/}, from which every number in this report
+is taken. Unit tests under \path{tests/} check the lag construction (including that no feature depends
+on later values) and the chronological split. The Python environment is pinned with uv (\path{uv.lock}).
+The raw data file is included in the repository and can also be obtained from the AMPds2 release
+% \citep{makonin2015dataverse}.
+\todo{citation and public GitHub URL}
 
 % ==================================================
 \chapter{Results}
 \label{chap:results}
 % ==================================================
 
-All numbers in this chapter are validation-split results, except those of Section~\ref{sec:test}, which are test-split results. Differences between single fits are reported as measured; no estimate of fit-to-fit or period-to-period variability is computed, so very small differences are not interpreted.
+All numbers in this chapter are validation-split results, except those of Section~\ref{sec:test},
+which are test-split results. Differences between single fits are reported as measured; no estimate
+of fit-to-fit or period-to-period variability is computed, so very small differences are not interpreted.
 
 \section{Baselines and diagnostic models}
 

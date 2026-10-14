@@ -17,7 +17,6 @@ src/
     config.py           paths, lag/feature sets, final features, LightGBM settings
     data.py             load the feature table, chronological split
     features.py         lag and calendar features
-    models.py           linear regression (OLS / median) and LightGBM fitting
     naive.py            the five naive baselines
     evaluation.py       MAE / RMSE / zero share, JSON summaries
   eda.py ... test_evaluation.py   one script per pipeline step (table below)

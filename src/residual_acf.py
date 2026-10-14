@@ -9,15 +9,15 @@ import matplotlib
 
 matplotlib.use("Agg")
 
+import lightgbm as lgb
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from statsmodels.tsa.stattools import acf
 
-from core.config import FINAL_FEATURES, LAGS, LOSSES, OUTPUT_DIR
+from core.config import FINAL_FEATURES, LAGS, LGBM_OBJECTIVES, LGBM_PARAMS, LOSSES, OUTPUT_DIR
 from core.data import load_features, split_series, xy
 from core.evaluation import write_summary
-from core.models import fit_lgbm
 
 OUT_DIR = OUTPUT_DIR / "residual_acf"
 PLOT_MAX_LAG = 60
@@ -39,7 +39,8 @@ def run(splits: dict[str, pd.DataFrame]) -> tuple[dict, dict[str, np.ndarray]]:
     X_valid, y_valid = xy(splits["valid"], FINAL_FEATURES)
     curves = {"target": acf_curve(y_valid)}
     for loss in LOSSES:
-        residuals = y_valid - fit_lgbm(X_train, y_train, X_valid, loss)
+        lgbm = lgb.LGBMRegressor(objective=LGBM_OBJECTIVES[loss], **LGBM_PARAMS).fit(X_train, y_train)
+        residuals = y_valid - lgbm.predict(X_valid)
         curves[f"lightgbm_{loss}"] = acf_curve(residuals)
 
     summary = {

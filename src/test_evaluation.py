@@ -6,13 +6,15 @@ scored next to the five baselines; always-mean uses the train + valid mean.
 Output: output/test_evaluation/summary.json and test_predictions.parquet
 """
 
+import lightgbm as lgb
 import numpy as np
 import pandas as pd
+import statsmodels.api as sm
+from sklearn.linear_model import LinearRegression
 
-from core.config import FINAL_FEATURES, LOSSES, OUTPUT_DIR
+from core.config import FINAL_FEATURES, LGBM_OBJECTIVES, LGBM_PARAMS, LOSSES, OUTPUT_DIR
 from core.data import load_features, split_series, xy
 from core.evaluation import score, write_summary
-from core.models import fit_lgbm, fit_linear
 from core.naive import naive_forecasts
 
 OUT_DIR = OUTPUT_DIR / "test_evaluation"
@@ -26,13 +28,15 @@ def run(splits: dict[str, pd.DataFrame]) -> tuple[dict, pd.DataFrame]:
     X_test, y_test = xy(test, FINAL_FEATURES)
     fit_mean = float(y_fit.mean())
 
-    kinds, preds = {}, {}
-    for name, p in naive_forecasts(test, fit_mean).items():
-        kinds[name], preds[name] = "baseline", p
-    for model, fit in (("linear", fit_linear), ("lightgbm", fit_lgbm)):
-        for loss in LOSSES:
-            name = f"{model}_{loss}"
-            kinds[name], preds[name] = "model", fit(X_fit, y_fit, X_test, loss)
+    preds = dict(naive_forecasts(test, fit_mean))
+    kinds = dict.fromkeys(preds, "baseline")  # every later entry is a model
+    ols = LinearRegression().fit(X_fit, y_fit)
+    median = sm.QuantReg(y_fit, sm.add_constant(X_fit)).fit(q=0.5, max_iter=5000)
+    preds["linear_l2"] = ols.predict(X_test)
+    preds["linear_l1"] = median.predict(sm.add_constant(X_test, has_constant="add"))
+    for loss in LOSSES:
+        lgbm = lgb.LGBMRegressor(objective=LGBM_OBJECTIVES[loss], **LGBM_PARAMS).fit(X_fit, y_fit)
+        preds[f"lightgbm_{loss}"] = lgbm.predict(X_test)
 
     summary = {
         "split": "test",
@@ -41,7 +45,7 @@ def run(splits: dict[str, pd.DataFrame]) -> tuple[dict, pd.DataFrame]:
         "n": len(test),
         "fit_target_mean": fit_mean,
         "test_target_zero_share": float(np.mean(y_test == 0)),
-        "results": {name: {"kind": kinds[name], **score(y_test, p)} for name, p in preds.items()},
+        "results": {name: {"kind": kinds.get(name, "model"), **score(y_test, p)} for name, p in preds.items()},
     }
     pred_frame = pd.DataFrame({"unix_ts": test.index.to_numpy(), "actual": y_test, **preds})
     return summary, pred_frame
