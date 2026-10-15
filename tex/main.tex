@@ -417,7 +417,7 @@ It is fitted on the raw calendar features and the twenty lags, with the objectiv
 
 To answer the research question which features are most important for the model,
 and which could therefore serve as the final feature set for the test set evaluation,
-both a feature ablation study and a feature importance analysis are performed.
+both a feature ablation study and a SHAP importance analysis are performed.
 (The data split, hyperparameters and seed are the same as in Section~\ref{sec:models}.)
 
 Onto the ablation, which is designed in two sequential steps.
@@ -451,7 +451,7 @@ are clearly best, and adding the day of week or the weekend indicator changes li
 Each set is fitted once and compared with the best set; differences too small to matter in practice are treated
 as ties, since no estimate of the variability of the scores is available (Section~\ref{sec:limitations}).
 
-\section{Feature Importance}
+\section{SHAP Importance}
 \label{sec:importance_method}
 
 Importance is computed with TreeSHAP (LightGBM's \texttt{pred\_contrib} argument), which splits
@@ -711,16 +711,15 @@ A plausible reason is that the hour already encodes that pattern and that the we
 weak (Figure~\ref{fig:profiles}). Two results support this indirectly: under L2, the seasonal lags together with the hour
 score close to the hour alone, and the day of week alone scores close to the always-mean baseline.
 
-\section{Feature Importance}
+\section{SHAP Importance}
 \label{sec:importance}
 
-Table~\ref{tab:shap} gives the mean absolute TreeSHAP value per feature group (in L/min, in the model's raw output) with its share of the total in brackets.
-
-\begin{table}[t]
+\begin{table}[h]
 \centering
 \small
 \setlength{\tabcolsep}{4pt}
-\caption{Mean absolute TreeSHAP value per feature group, LightGBM, validation split, with share of the total in brackets. A dash means the group is not in the model; 0 means the trees never split on the group.}
+\caption{Mean absolute TreeSHAP value per feature group, LightGBM, validation split, with share of the total in brackets.
+A dash means the group is not used for the final model training.}
 \label{tab:shap}
 \begin{tabular}{@{}lrrrr@{}}
 \toprule
@@ -738,16 +737,24 @@ Day of week and weekend & 0.001 (0.1\%) & -- & 0 (0\%) & -- \\
 \end{table}
 % source: output/feature_importance/summary.json -> models.lightgbm_{l2,l1}.{all_features,final}.groups.*.{mean_abs_shap,share}
 
-With all features offered, the immediate lags carry 88.4\% of the total attribution under L2 and 95.9\% under L1, and the hour a further 9.6\% and 4.1\%. The seasonal lags, the hour-scale lags and the day of week together carry 2.0\% under L2 and nothing measurable under L1. Restricting the model to the final set leaves the ranking and the shares nearly unchanged.
+With all features offered, the immediate lags carry 88.4\% of the total attribution under L2 and 95.9\% under L1,
+and the hour a further 9.6\% and 4.1\%. The seasonal lags, the hour-scale lags and the day of week together carry 2.0\% under
+L2 and nothing measurable under L1. Restricting the model to the final set leaves the ranking and the shares nearly unchanged.
+% source: output/feature_importance/summary.json -> models.lightgbm_{l2,l1}.{all_features,final}.groups.*.share; the 2.0\% is computed from these shares
 
-\paragraph{Interpretation.} The attribution agrees with the ablation: the blocks that the ablation found redundant (hour-scale lags, daily and weekly lags, day of week and weekend) receive almost no attribution even when the model is free to use them, so two different analyses point to the same answer for RQ2: recent consumption within the last quarter hour is by far the most important information, the time of day comes second, and the longer-range and day-level calendar features add almost nothing. This is a consistency check, not independent confirmation, since both analyses use the same data, model class and validation window. TreeSHAP also measures how far a feature moves this one fitted model's predictions, not how much error it removes; the ablation measures the latter by retraining. Given the high zero share of the L1 model, its attribution plausibly describes mostly a zero-or-flow decision (Section~\ref{sec:comparison}), so shares are comparable between losses only qualitatively. Both losses are kept and reported side by side, with neither declared primary.
+\paragraph{Interpretation.} The attribution agrees with the ablation: the groups the ablation found redundant receive almost
+no attribution even when the model is free to use them. Both analyses thus give the same answer to RQ2: consumption within the
+last quarter hour is by far the most important information, the time of day comes second, and the longer lags and the day of week
+add almost nothing. This is a consistency check rather than independent confirmation, since both use the same data, model class and
+validation window, and they measure different things: TreeSHAP how far a feature moves one fitted model's predictions,
+the ablation how much error it removes when the model is retrained without it.
 
 \section{Residual Autocorrelation}
 \label{sec:residual_acf}
 
-Table~\ref{tab:residual_acf} and Figure~\ref{fig:residual_acf} show the autocorrelation of the validation residuals of the final-feature LightGBM models, next to the autocorrelation of the target on the same window. The white-noise band is $\pm0.0054$ ($n=131{,}100$).
+Table~\ref{tab:residual_acf} and Figure~\ref{fig:residual_acf} show the autocorrelation of the validation residuals of the final-feature LightGBM models, next to the autocorrelation of the target on the same window, with the white-noise band of Section~\ref{sec:residual_method}.
 
-\begin{table}[t]
+\begin{table}[h]
 \centering
 \caption{Autocorrelation at selected lags (minutes) on the validation split: target and residuals of the final-feature LightGBM models.}
 \label{tab:residual_acf}
@@ -770,19 +777,30 @@ Lag & Target & Residual, L2 & Residual, L1 \\
 \end{table}
 % source: output/residual_acf/summary.json -> target_acf, residual_acf.*, white_noise_band
 
-\begin{figure}[t]
+\begin{figure}[h]
 \centering
 \includegraphics[width=\textwidth]{residual_acf.pdf}
 \caption{Autocorrelation up to 60 minutes on the validation split: target and residuals (left), residuals only (right). Dashed lines: white-noise band.}
 \label{fig:residual_acf}
 \end{figure}
-% source: output/residual_acf/figs/residual_acf.png (src/residual_acf.py)
+% source: output/residual_acf/figs/residual_acf.pdf (src/residual_acf.py)
 
-The target itself is strongly autocorrelated at short lags (0.65 at lag 1, 0.12 at lag 15) and weakly at longer ones (0.05 at 60 minutes, 0.07 and 0.10 at one day and one week). The L2 residuals are close to uncorrelated: at every candidate lag their autocorrelation is at most 0.025 in absolute value (largest at lag 2, $-0.025$, followed by lag 6, $-0.017$, which is not shown in the table), although several values exceed the white-noise band. The L1 residuals keep a positive autocorrelation at every candidate lag, 0.117 at lag 1 and between 0.017 and 0.062 at the others.
+The target is strongly autocorrelated at short lags and weakly at longer ones, as is known from the
+original ACF inspection. The L2 residuals are close to uncorrelated: at every candidate lag their autocorrelation
+is at most 0.025 in absolute value, although several values lie outside the white-noise band.
+The L1 residuals stay positively autocorrelated at every candidate lag, though far below the target.
 
-\paragraph{Interpretation.} For the L2 model, the hour and lags 1--15 remove nearly all linear temporal dependence: lag-1 autocorrelation drops from 0.65 to $-0.01$. The daily and weekly residual autocorrelations are small (0.005 and 0.014) although the final model has no seasonal lags. This fits the explanation given in Section~\ref{sec:ablation}, but is only weak evidence for it: the target's own autocorrelation at these lags is already weak on this window (0.074 and 0.098), so small residual values would be expected either way.
+\paragraph{Interpretation.} For the L2 model, the hour and lags 1--15 remove nearly all linear temporal dependence:
+the lag-1 autocorrelation drops from 0.65 to $-0.01$. The daily and weekly residual values are small (0.005 and 0.014)
+although the final model has no seasonal lags. This fits the explanation in Section~\ref{sec:ablation} but is weak evidence for it,
+since the target's own autocorrelation at these lags is already low on this window (0.074 and 0.098).
 
-The L1 residuals are a different object. Their positive autocorrelation cannot come from persistence within single events alone, since events are short (median 2 minutes) and the values stay positive at 30 minutes, one day and one week. A more likely explanation, not tested here, is that the L1 loss targets the conditional median, which for right-skewed flow lies below the conditional mean, so the model under-predicts during active periods; it also misses event onsets, when the recent lags are still zero. Both leave positive residuals that cluster in time: onset misses at short lags, and under-prediction in busy periods, which recur at similar times of day, at the longer lags. Residual autocorrelation therefore depends on the loss and is not by itself a measure of forecast quality. The check covers only linear dependence in the residuals; dependence in their magnitude (clustering of large errors) is not examined.
+The L1 residuals behave differently. A possible explanation, not tested here, is that the L1 loss targets
+the conditional median, which for right-skewed flow lies below the conditional mean,
+so the model under-predicts during active periods, and that it misses event onsets,
+when the recent lags are still zero. Both leaveing positive residuals.
+Since the L1 model has the lower MAE, residual autocorrelation depends on the loss and is not by
+itself a measure of forecast quality.
 
 \section{Test Evaluation}
 \label{sec:test}
@@ -847,7 +865,7 @@ As on the validation split, no predictor is best on both metrics: LightGBM (L2) 
 \begin{itemize}
     \item A single house, a single chronological validation window and a single 13-week test window. There is no rolling-origin repetition and hence no estimate of variability across periods, so differences of a few thousandths, as in parts of the ablation or between the two L1 models on test RMSE, are not distinguishable from noise. Whether the results transfer to other households is unknown.
     \item The final feature set was chosen against a practical tolerance on the validation window, with the calendar settled before the lags rather than in a full grid. The LightGBM configuration is untuned; a small tuning grid changed validation scores negligibly, so the comparison is not optimised over hyperparameters.
-    \item Feature importance and the residual autocorrelation are descriptive results of single training-only fits on the validation window, whereas the test models are fitted on training plus validation data. TreeSHAP describes one fitted model and is reported per group because the lags are correlated; the residual check covers linear dependence only, and its white-noise band is a reference line, not a test.
+    \item SHAP importance and the residual autocorrelation are descriptive results of single training-only fits on the validation window, whereas the test models are fitted on training plus validation data. TreeSHAP describes one fitted model and is reported per group because the lags are correlated; the residual check covers linear dependence only, and its white-noise band is a reference line, not a test.
     \item The autocorrelation analysis that motivated the candidate lags (Figure~\ref{fig:acf}) used the whole analysis period, including the validation and test windows. The final lag set was chosen on the validation split only, so the effect is limited to which lags were offered as candidates.
     \item Point forecasts only, at one-minute resolution by design; the regression models do not enforce non-negativity, and no probabilistic or two-part structure is used.
 \end{itemize}
