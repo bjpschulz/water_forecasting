@@ -2,7 +2,7 @@
 Residual ACF of the final-feature LightGBM models (L2 and L1), fitted on train,
 next to the ACF of the target, both on the validation split.
 
-Output: output/residual_acf/summary.json and figs/residual_acf.png (lags 1-60)
+Output: output/residual_acf/summary.json and figs/residual_acf.pdf (lags 1-60)
 """
 
 import matplotlib
@@ -76,7 +76,7 @@ def plot_correlogram(curves: dict[str, np.ndarray], band: float) -> None:
     fig.suptitle("Validation ACF, final feature set; dashed: white-noise band +-1.96/sqrt(n)")
     fig.tight_layout()
     (OUT_DIR / "figs").mkdir(parents=True, exist_ok=True)
-    fig.savefig(OUT_DIR / "figs" / "residual_acf.png", dpi=150)
+    fig.savefig(OUT_DIR / "figs" / "residual_acf.pdf")
     plt.close(fig)
 
 

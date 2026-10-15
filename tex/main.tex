@@ -146,7 +146,7 @@ autocorrelation check follow, and the final models are evaluated once on the tes
 Each methodological choice was based on an experiment on the validation split rather than fixed in advance.
 
 % ==================================================
-\chapter{Related Work}
+\chapter{Literature Review}
 \label{chap:related}
 % ==================================================
 
@@ -280,7 +280,7 @@ at 10080 minutes. These observations motivated the lag feature set.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\textwidth]{acf.png}
+\includegraphics[width=\textwidth]{acf.pdf}
 \caption{Autocorrelation function of \texttt{avg\_rate} in the V100 period (left: up to one week; right: first five hours). Red lines mark the candidate lags.}
 \label{fig:acf}
 \end{figure}
@@ -292,13 +292,13 @@ at 10080 minutes. These observations motivated the lag feature set.
 \begin{figure}[t]
 \centering
 \begin{subfigure}{\textwidth}
-\includegraphics[width=\textwidth]{hour_profile.png}
+\includegraphics[width=\textwidth]{hour_profile.pdf}
 \caption{Hour of day.}
 \end{subfigure}
 
 \vspace{1ex}
 \begin{subfigure}{\textwidth}
-\includegraphics[width=\textwidth]{dow_profile.png}
+\includegraphics[width=\textwidth]{dow_profile.pdf}
 \caption{Day of week. Note the much narrower y-axis range than in (a).}
 \end{subfigure}
 \caption{Mean \texttt{avg\_rate} (left) and share of minutes with flow (right) by local hour of day and day of week, analysis period.}
@@ -534,14 +534,13 @@ from the AMPds2 release \citep{makonin2015dataverse}. The repository is public u
 % ==================================================
 
 All numbers in this chapter are validation-split results, except those of Section~\ref{sec:test},
-which are test-split results. Differences between single fits are reported as measured; no estimate
-of fit-to-fit or period-to-period variability is computed, so very small differences are not interpreted.
+which are test-split results.
 
 \section{Baselines and Diagnostic Models}
 
 Table~\ref{tab:main_results} compares all nine predictors.
 
-\begin{table}[t]
+\begin{table}[h]
 \centering
 \caption{Validation errors in L/min. Bold marks the best value per metric.}
 \label{tab:main_results}
@@ -589,7 +588,7 @@ The weak seasonal-naive results are most likely due to event timing not repeatin
 
 Table~\ref{tab:cal_ablation} shows the calendar ablation. Under the L1 loss all calendar-only fits are the constant zero prediction (zero share 1.0), identical to the always-zero baseline (MAE 0.5001, RMSE 1.8437), so calendar-only fits are informative only under L2.
 
-\begin{table}[t]
+\begin{table}[h]
 \centering
 \small
 \caption{Calendar ablation (step~1), LightGBM, validation errors in L/min. The calendar-only fits under L1 are all the constant zero prediction and are omitted. Bold marks the best value per column.}
@@ -715,7 +714,7 @@ Lag & Target & Residual, L2 & Residual, L1 \\
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\textwidth]{residual_acf.png}
+\includegraphics[width=\textwidth]{residual_acf.pdf}
 \caption{Autocorrelation up to 60 minutes on the validation split: target and residuals (left), residuals only (right). Dashed lines: white-noise band.}
 \label{fig:residual_acf}
 \end{figure}

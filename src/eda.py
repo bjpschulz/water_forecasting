@@ -343,7 +343,7 @@ def make_figures(v100: pd.DataFrame, acf_result: dict, daily: pd.Series) -> None
     ax.set_ylabel("Frequency")
     ax.set_title("Distribution of WHW avg_rate (V100 period)")
     fig.tight_layout()
-    fig.savefig(FIG_DIR / "hist_all.png", dpi=150)
+    fig.savefig(FIG_DIR / "hist_all.pdf")
     plt.close(fig)
 
     # nonzero histogram is more informative than the full histogram
@@ -362,7 +362,7 @@ def make_figures(v100: pd.DataFrame, acf_result: dict, daily: pd.Series) -> None
     ax.xaxis.set_minor_locator(MultipleLocator(PULSE_SIZE_L))
     ax.set_xlim(0, nonzero.max() + PULSE_SIZE_L / 2)
     fig.tight_layout()
-    fig.savefig(FIG_DIR / "hist_nonzero.png", dpi=150)
+    fig.savefig(FIG_DIR / "hist_nonzero.pdf")
     plt.close(fig)
 
     # minutely time series plot
@@ -372,7 +372,7 @@ def make_figures(v100: pd.DataFrame, acf_result: dict, daily: pd.Series) -> None
     ax.set_ylabel("avg_rate (L/min)")
     ax.set_title("Whole-house water consumption — V100 period")
     fig.tight_layout()
-    fig.savefig(FIG_DIR / "timeseries_v100.png", dpi=150)
+    fig.savefig(FIG_DIR / "timeseries_v100.pdf")
     plt.close(fig)
 
     # daily totals - level shifts, absences and unusually heavy-use days mroe visible 
@@ -391,7 +391,7 @@ def make_figures(v100: pd.DataFrame, acf_result: dict, daily: pd.Series) -> None
     ax.set_title("Whole-house water consumption, daily volume — V100 period")
     ax.legend(loc="upper right")
     fig.tight_layout()
-    fig.savefig(FIG_DIR / "daily_volume_v100.png", dpi=150)
+    fig.savefig(FIG_DIR / "daily_volume_v100.pdf")
     plt.close(fig)
 
     # Hour-of-day profile
@@ -407,7 +407,7 @@ def make_figures(v100: pd.DataFrame, acf_result: dict, daily: pd.Series) -> None
     axes[1].set_xticks(range(0, 24, 2))
     fig.suptitle("Hour-of-day profile (V100 period, local time)")
     fig.tight_layout()
-    fig.savefig(FIG_DIR / "hour_profile.png", dpi=150)
+    fig.savefig(FIG_DIR / "hour_profile.pdf")
     plt.close(fig)
 
     # Interesting Mondays
@@ -422,7 +422,7 @@ def make_figures(v100: pd.DataFrame, acf_result: dict, daily: pd.Series) -> None
     axes[1].set_ylabel("Fraction of minutes with consumption")
     fig.suptitle("Day-of-week profile (V100 period, local time)")
     fig.tight_layout()
-    fig.savefig(FIG_DIR / "dow_profile.png", dpi=150)
+    fig.savefig(FIG_DIR / "dow_profile.pdf")
     plt.close(fig)
 
     # Two panels (full range, 5-hour zoom)
@@ -445,7 +445,7 @@ def make_figures(v100: pd.DataFrame, acf_result: dict, daily: pd.Series) -> None
     axes[1].set_xlim(0, zoom)  # axvline would otherwise stretch the zoom to the full lag range
     fig.suptitle("Autocorrelation (V100 period); red lines: candidate lags")
     fig.tight_layout()
-    fig.savefig(FIG_DIR / "acf.png", dpi=150)
+    fig.savefig(FIG_DIR / "acf.pdf")
     plt.close(fig)
 
 
