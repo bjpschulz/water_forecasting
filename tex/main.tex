@@ -238,7 +238,7 @@ Column & Meaning \\
 \end{tabular}
 \end{table}
 
-\section{Data inspection and cleaning}
+\section{Data Inspection and Cleaning}
 
 The data-quality checks performed here found no missing values, a regular one-minute grid, and internal consistency between
 \texttt{counter} and \texttt{avg\_rate}, validating the claims of the authors of \citep{makonin2016ampds}.
@@ -308,7 +308,7 @@ at 10080 minutes. These observations motivated the lag feature set.
 
 
 \newpage
-\section{Feature construction}
+\section{Feature Construction}
 
 All features are deterministic row-wise transforms, either backward shifts of the target or functions of the timestamp.
 The table can therefore be built on the full time series before splitting into train/validation/test set without leakage;
@@ -335,7 +335,7 @@ Calendar (cyclic) & \texttt{hour\_sin}, \texttt{hour\_cos},\newline \texttt{dow\
 Calendar features encode known-in-advance seasonal structure (the expected value at a temporal position),
 whereas lags encode realised recent values. The two are complementary and the ablation tests how much each contributes.
 
-\section{Chronological data split}
+\section{Chronological Data Split}
 
 The series is split chronologically (Table~\ref{tab:splits}).
 Validation and test boundaries lie on Monday 00:00 local time,
@@ -362,7 +362,7 @@ Test & 132{,}420 & 2013-12-30 00:00 & 2014-03-31 23:59 \\
 \end{table}
 % source: output/baselines/summary.json -> splits
 
-\section{Evaluation metrics}
+\section{Evaluation Metrics}
 \label{sec:metrics}
 
 Models are compared by the mean absolute error and the root mean squared error on $n$ evaluation minutes,
@@ -380,7 +380,7 @@ Therefore, always-zero is the MAE-optimal constant and always-mean the RMSE-opti
 and both are included in the naive baselines any model must beat.
 
 
-\section{Naive baselines}
+\section{Naive Baselines}
 
 Five fixed rules require no fitting and are evaluated on the validation split:
 \begin{align}
@@ -396,7 +396,7 @@ are fixed UTC-minute row lags (they don't respect DST transition)
 and are read from the  previously constructed feature table's lag columns.
 % source: output/baselines/summary.json -> train_target_mean
 
-\section{Diagnostic models}
+\section{Diagnostic Models}
 \label{sec:diagnostic}
 
 Two models are fitted on the training split with the calendar and full lag feature set (all lags of Table~\ref{tab:features}) and evaluated on the validation split. They are diagnostic, meant to show whether the features let a model clear the naive floor by a real margin, not final tuned models. Each class is fitted under two training losses, an L2 loss (targeting the conditional mean) and an L1 loss (targeting the conditional median), giving a two-by-two design of model class and loss in which features, split, hyperparameters and seed are identical.
@@ -411,7 +411,7 @@ all other parameters at their defaults) are used, with a fixed random seed of 42
 on the raw calendar features and the twenty lags, with the objectives \texttt{regression\_l2} and \texttt{regression\_l1}.
 % source: src/core/config.py (CFG.lgbm_params, CFG.losses; the loss names l2/l1 are LightGBM aliases of regression_l2/regression_l1); defaults checked against LightGBM 4.7.0
 
-\section{Feature ablation protocol}
+\section{Feature Ablation Protocol}
 \label{sec:ablation_protocol}
 
 To answer the research question which features are most important for the model,
@@ -450,7 +450,7 @@ are clearly best, and adding the day of week or the weekend indicator changes li
 Each set is fitted once and compared with the best set; differences too small to matter in practice are treated
 as ties, since no estimate of the variability of the scores is available (Section~\ref{sec:limitations}).
 
-\section{Feature importance}
+\section{Feature Importance}
 \label{sec:importance_method}
 
 Importance is computed with TreeSHAP (LightGBM's \texttt{pred\_contrib} argument), which splits
@@ -464,7 +464,7 @@ hour, day of week with the weekend indicator) as the mean absolute value of the 
 contributions and as its share of the total. The groups must partition the features of the fitted model,
 meaning they are non-overlapping, unlike in the feature ablation study.
 
-\section{Residual autocorrelation}
+\section{Residual Autocorrelation}
 \label{sec:residual_method}
 % source: output/residual_acf/summary.json -> n, white_noise_band
 
@@ -476,7 +476,7 @@ white-noise band $\pm1.96/\sqrt n=\pm0.0054$ ($n=131{,}100$ validation minutes),
 autocorrelations of an uncorrelated series fall. It is a reference line, not a test: being this narrow, even very weak
 autocorrelation lies outside it.
 
-\section{Test evaluation protocol}
+\section{Test Evaluation Protocol}
 \label{sec:test_method}
 
 The final models were fixed before the test split was evaluated: LightGBM with the untuned configuration of Section~\ref{sec:diagnostic}
@@ -492,7 +492,7 @@ The always-mean baseline uses the mean of the same fitting data (0.561~L/min). N
 test split, and its result is not used to revise any earlier decision.
 % source: output/test_evaluation/summary.json -> fit_rows, n, fit_target_mean
 
-\section{Excluded approaches}
+\section{Excluded Approaches}
 \label{sec:excluded}
 
 Several options were considered and deliberately left out, some after a single trial run on the
@@ -516,7 +516,7 @@ every optimum on the edge of the grid, so it was dropped: the final LightGBM kee
 configuration of Section~\ref{sec:diagnostic}, refitted on training plus validation with the same
 settings.
 
-\section{Reproducibility, code and data}
+\section{Reproducibility, Code and Data}
 
 The code is organised as one script per pipeline stage under \path{src/}. Shared functionality
 lives in the package \path{src/core/}: paths and feature sets, data loading,
@@ -537,7 +537,7 @@ All numbers in this chapter are validation-split results, except those of Sectio
 which are test-split results. Differences between single fits are reported as measured; no estimate
 of fit-to-fit or period-to-period variability is computed, so very small differences are not interpreted.
 
-\section{Baselines and diagnostic models}
+\section{Baselines and Diagnostic Models}
 
 Table~\ref{tab:main_results} compares all nine predictors.
 
@@ -566,7 +566,7 @@ LightGBM (L1) & diagnostic & \textbf{0.3477} & 1.3328 \\
 
 No predictor is best on both metrics. LightGBM (L2) has the lowest RMSE and LightGBM (L1) the lowest MAE. On RMSE, all four diagnostic models beat every baseline, including persistence. On MAE, both L1 models beat persistence, always-zero and all other baselines; of the L2 models, LightGBM is below always-zero but above persistence, and linear regression is above always-zero. Always-zero has the lower MAE and always-mean the lower RMSE of the two constants, as expected from the median/mean argument in Section~\ref{sec:metrics}. The seasonal-naive baselines are worse than always-zero on both metrics.
 
-\section{L1 versus L2 training loss}
+\section{L1 versus L2 Training Loss}
 \label{sec:l1l2}
 
 Within each model class, switching from the L2 to the L1 loss lowers the MAE and raises the RMSE. For linear regression the MAE falls by 20.8\% while the RMSE rises by 2.6\%; for LightGBM the MAE falls by 26.4\% while the RMSE rises by 6.4\%. The share of exactly-zero predictions differs sharply: LightGBM (L1) predicts exactly zero in 90.4\% of the validation minutes, against 86.5\% of minutes whose true value is zero, whereas linear regression (L1) predicts exactly zero in 0.6\% of minutes and both L2 models in none.
@@ -584,7 +584,7 @@ Within each model class, switching from the L2 to the L1 loss lowers the MAE and
 
 The weak seasonal-naive results are most likely due to event timing not repeating at the exact minute across days or weeks, so a same-minute lag mostly predicts flow at the wrong time. This concerns the same-minute lag as a point predictor, not the presence of daily and weekly structure in the ACF.
 
-\section{Calendar ablation (step 1)}
+\section{Calendar Ablation (Step 1)}
 \label{sec:cal_results}
 
 Table~\ref{tab:cal_ablation} shows the calendar ablation. Under the L1 loss all calendar-only fits are the constant zero prediction (zero share 1.0), identical to the always-zero baseline (MAE 0.5001, RMSE 1.8437), so calendar-only fits are informative only under L2.
@@ -616,7 +616,7 @@ Alone, the hour carries nearly all of the calendar signal under L2 (MAE 0.8521 a
 
 \paragraph{Interpretation.} The ablation matches the profiles of Figure~\ref{fig:profiles}. Over the day, the mean consumption changes by two orders of magnitude, whereas the daily means of the week differ by only about $\pm10\%$. The day of week therefore carries little information from the start, and once the hour and the recent consumption are known there is almost nothing left for it to explain. A day-specific shape of the daily cycle, for example a later morning peak at weekends, could in principle still matter; the trees can represent such an hour--day interaction when both features are offered, but doing so did not improve the fit measurably.
 
-\section{Lag ablation (step 2)}
+\section{Lag Ablation (Step 2)}
 
 Table~\ref{tab:lag_ablation} shows the lag ablation with the hour as the only calendar feature.
 
@@ -645,7 +645,7 @@ All lags, no hour (reference) & 0.4763 & 1.2683 & 0.3516 & 1.3504 \\
 
 Under both losses, the dense immediate block is better than the sparse-hour set on both metrics (MAE 0.4731 versus 0.5032 under L2 and 0.3477 versus 0.3616 under L1), so the dense block is justified. Persistence only (\texttt{lag\_1}) is close to the sparse-hour set; the larger improvement comes with lags 2--15. Adding the hour-scale lags and then the seasonal lags to the immediate block changes MAE and RMSE by less than 0.2\% under L2 and by at most 0.0002 under L1. The seasonal lags alone (with the hour) are close to the hour-only fit under L2 (MAE 0.8472 versus 0.8521) and a constant zero prediction under L1. Without the hour, all lags are worse by 0.0040 MAE and 0.0164 RMSE under L2 (0.0039 and 0.0176 under L1). Persistence only with the L1 loss improves on the persistence baseline on both metrics (MAE 0.3619 versus 0.4302, RMSE 1.3704 versus 1.4780).
 
-\section{Final feature set}
+\section{Final Feature Set}
 \label{sec:final_features}
 
 The dense immediate block clearly matters: the sparse-hour set and persistence only are 6.4\% and 6.8\% worse in MAE than the immediate block under L2.
@@ -654,7 +654,7 @@ On top of the hour and lags 1--15, in contrast, the hour-scale lags, the daily a
 
 \paragraph{Interpretation.} The daily and weekly lags add nothing beyond the hour and the short lags although the ACF has daily and weekly bumps. A plausible reason is that the hour already encodes the diurnal pattern and that the weekly pattern of this house is weak (Figure~\ref{fig:profiles}). Two ablation results support this indirectly: under L2, the seasonal lags together with the hour score close to the hour alone (MAE 0.8472 versus 0.8521, Table~\ref{tab:lag_ablation}), and the day of week alone scores close to the always-mean baseline (Table~\ref{tab:cal_ablation}).
 
-\section{Feature importance}
+\section{Feature Importance}
 \label{sec:importance}
 
 Table~\ref{tab:shap} gives the mean absolute TreeSHAP value per feature group (in L/min, in the model's raw output) with its share of the total in brackets.
@@ -685,7 +685,7 @@ With all features offered, the immediate lags carry 88.4\% of the total attribut
 
 \paragraph{Interpretation.} The attribution agrees with the ablation: the blocks that the ablation found redundant (hour-scale lags, daily and weekly lags, day of week and weekend) receive almost no attribution even when the model is free to use them, so two different analyses point to the same answer for RQ2: recent consumption within the last quarter hour is by far the most important information, the time of day comes second, and the longer-range and day-level calendar features add almost nothing. This is a consistency check, not independent confirmation, since both analyses use the same data, model class and validation window. TreeSHAP also measures how far a feature moves this one fitted model's predictions, not how much error it removes; the ablation measures the latter by retraining. Given the high zero share of the L1 model, its attribution plausibly describes mostly a zero-or-flow decision (Section~\ref{sec:l1l2}), so shares are comparable between losses only qualitatively. Both losses are kept and reported side by side, with neither declared primary.
 
-\section{Residual autocorrelation}
+\section{Residual Autocorrelation}
 \label{sec:residual_acf}
 
 Table~\ref{tab:residual_acf} and Figure~\ref{fig:residual_acf} show the autocorrelation of the validation residuals of the final-feature LightGBM models, next to the autocorrelation of the target on the same window. The white-noise band is $\pm0.0054$ ($n=131{,}100$).
@@ -727,7 +727,7 @@ The target itself is strongly autocorrelated at short lags (0.65 at lag 1, 0.12 
 
 The L1 residuals are a different object. Their positive autocorrelation cannot come from persistence within single events alone, since events are short (median 2 minutes) and the values stay positive at 30 minutes, one day and one week. A more likely explanation, not tested here, is that the L1 loss targets the conditional median, which for right-skewed flow lies below the conditional mean, so the model under-predicts during active periods; it also misses event onsets, when the recent lags are still zero. Both leave positive residuals that cluster in time: onset misses at short lags, and under-prediction in busy periods, which recur at similar times of day, at the longer lags. Residual autocorrelation therefore depends on the loss and is not by itself a measure of forecast quality. The check covers only linear dependence in the residuals; dependence in their magnitude (clustering of large errors) is not examined.
 
-\section{Test evaluation}
+\section{Test Evaluation}
 \label{sec:test}
 
 Table~\ref{tab:test_results} gives the single evaluation of the final models and the baselines on the test split, following the protocol in Section~\ref{sec:test_method}. Figure~\ref{fig:test_week} shows their predictions for one evening of the test split.

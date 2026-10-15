@@ -136,7 +136,7 @@ never delete or rewrite one except to correct an error.
   Stage 3 untuned settings: LightGBM's library defaults (100 trees, 31 leaves,
   learning rate 0.1, checked against LightGBM 4.7.0) plus seed 42
   (`core/config.py: CFG.lgbm_params`). Run once and then removed; the report
-  states this in its "Excluded approaches and hyperparameter tuning" section.
+  states this in its "Excluded approaches" section.
 - **Both L2 and L1 losses are kept** through the final stage (importance,
   residual ACF, test evaluation). The L1/L2 trade-off is reported as found,
   with neither declared the primary model.
