@@ -25,7 +25,7 @@ class Config:
     hour_scale: tuple[str, ...] = ("lag_30", "lag_45", "lag_60")
     seasonal: tuple[str, ...] = ("lag_1440", "lag_10080")
 
-    # Feature sets of the diagnostic models: cyclic calendar for the linear model, raw for LightGBM
+    # Feature sets of the model comparison (all candidate features): cyclic calendar for the linear model, raw for LightGBM
     features_linear: tuple[str, ...] = ("hour_sin", "hour_cos", "dow_sin", "dow_cos", "weekend", *lag_cols)
     features_tree: tuple[str, ...] = ("hour", "dow_local", "weekend", *lag_cols)
     # Final feature set, chosen by the feature ablation; used by every final model.

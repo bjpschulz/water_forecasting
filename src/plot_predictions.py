@@ -1,6 +1,6 @@
 """
 Plot actual vs. predicted values for one window of the validation split
-(baselines + diagnostic models) or the test split (baselines + final models),
+(all baselines and models) or the test split (main baselines + final models),
 from saved predictions.
 
 Usage: uv run python src/plot_predictions.py --split test --week 2 --day 2 --hours 16-22
@@ -26,22 +26,22 @@ SOURCES = {
     "valid": (
         [CFG.output_dir / "baselines" / "validation_predictions.parquet",
          CFG.output_dir / "compare_models" / "validation_predictions.parquet"],
-        "validation, diagnostic models",
+        "validation split",
     ),
     "test": (
         [CFG.output_dir / "test_evaluation" / "test_predictions.parquet"],
-        "test, final models",
+        "test split, final models",
     ),
 }
 FIG_DIR = CFG.output_dir / "prediction_plots"
-DEFAULT_METHODS = [
-    "always_zero",
-    "persistence",
-    "linear_l1",
-    "linear_l2",
-    "lightgbm_l1",
-    "lightgbm_l2",
-]
+# Default panels per split, filled row-wise into two columns (L2 left, L1 right for the models).
+DEFAULT_METHODS = {
+    "valid": [
+        "always_mean", "always_zero", "seasonal_naive_daily", "seasonal_naive_weekly",
+        "linear_l2", "linear_l1", "lightgbm_l2", "lightgbm_l1", "persistence",
+    ],
+    "test": ["always_zero", "persistence", "linear_l2", "linear_l1", "lightgbm_l2", "lightgbm_l1"],
+}
 
 METHOD_LABELS = {
     "always_zero": "Always zero",
@@ -134,7 +134,7 @@ def plot_predictions(predictions: pd.DataFrame, window: Window, methods: list[st
     ncols = 2
     nrows = ceil(len(methods) / ncols)
     fig, axes = plt.subplots(
-        nrows, ncols, figsize=(15, 3.2 * nrows), sharex=True, sharey=True, squeeze=False
+        nrows, ncols, figsize=(15, 3.2 * nrows), sharex=True, sharey=True, squeeze=False, layout="constrained"
     )
     locator = mdates.AutoDateLocator(minticks=4, maxticks=9, tz=CFG.local_tz)
     formatter = mdates.DateFormatter("%a %d %H:%M %Z", tz=CFG.local_tz)
@@ -145,7 +145,6 @@ def plot_predictions(predictions: pd.DataFrame, window: Window, methods: list[st
         ax.set_title(METHOD_LABELS[method])
         ax.set_ylabel("avg_rate (L/min)")
         ax.grid(True, alpha=0.25)
-        ax.legend(loc="upper right", frameon=False)
         ax.xaxis.set_major_locator(locator)
         ax.xaxis.set_major_formatter(formatter)
 
@@ -153,10 +152,10 @@ def plot_predictions(predictions: pd.DataFrame, window: Window, methods: list[st
         ax.set_visible(False)
     for ax in axes[-1, :]:
         if ax.get_visible():
+            ax.xaxis.set_tick_params(rotation=25)
             ax.set_xlabel(f"Local time ({CFG.local_tz})")
-    fig.autofmt_xdate(rotation=25, ha="right")
+    axes[0, 0].legend(loc="upper left", frameon=False)
     fig.suptitle(f"Actual and predicted water consumption — {SOURCES[split][1]}, {window.title()}")
-    fig.tight_layout()
     return fig
 
 
@@ -172,11 +171,12 @@ def main() -> None:
     parser.add_argument("--week", type=int, default=2, help="week of the split, from 1")
     parser.add_argument("--day", type=int, help="1 (Monday) to 7 (Sunday); default whole week")
     parser.add_argument("--hours", type=parse_hours, help="local hour range START-END, e.g. 16-22")
-    parser.add_argument("--methods", nargs="+", default=DEFAULT_METHODS, help="prediction columns")
+    parser.add_argument("--methods", nargs="+", help="prediction columns; default depends on the split")
     args = parser.parse_args()
 
     window = Window(args.week, args.day, args.hours)
-    fig = plot_predictions(load_predictions(args.split), window, args.methods, args.split)
+    methods = args.methods or DEFAULT_METHODS[args.split]
+    fig = plot_predictions(load_predictions(args.split), window, methods, args.split)
     FIG_DIR.mkdir(parents=True, exist_ok=True)
     output_path = FIG_DIR / f"{args.split}_{window.slug()}.pdf"
     fig.savefig(output_path, dpi=300, bbox_inches="tight", format="pdf")

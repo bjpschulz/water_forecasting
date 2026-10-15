@@ -53,8 +53,8 @@ uv run pytest
 writes its exact results to `output/<step>/summary.json`.
 
 Prediction plots are made separately, from saved predictions (no refitting):
-the validation split shows the baselines and the diagnostic models, the test
-split the baselines and the final models.
+the validation split shows all baselines and the models on all candidate
+features, the test split the main baselines and the final models.
 
 ```sh
 uv run python src/plot_predictions.py --split valid --week 2

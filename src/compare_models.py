@@ -1,5 +1,5 @@
 """
-Diagnostic models: linear regression and LightGBM, each under an L2 and an L1
+Model comparison: linear regression and LightGBM, each under an L2 and an L1
 loss, on calendar + all lags, fitted on train and scored on validation.
 Linear L1 is median regression; only the loss differs within a model class.
 
