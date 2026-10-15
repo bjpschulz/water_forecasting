@@ -34,7 +34,8 @@ FEATURE_SETS = {
 
 def shap_groups(model, X, columns, groups) -> dict:
     """Mean |TreeSHAP| per group and its share of the total."""
-    contrib = model.predict(X, pred_contrib=True)  # last column is the expected value
+    # pred_contrib=True returns per-row TreeSHAP values, one column per feature; the last column is the expected value.
+    contrib = model.predict(X, pred_contrib=True)
     assert np.allclose(contrib.sum(axis=1), model.predict(X, raw_score=True)), "SHAP not additive"
     mean_abs = {
         name: np.abs(contrib[:, [columns.index(c) for c in members]].sum(axis=1)).mean()

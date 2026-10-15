@@ -17,14 +17,7 @@ def load_features() -> pd.DataFrame:
 
 
 def split_series(df: pd.DataFrame) -> dict[str, pd.DataFrame]:
-    """
-    Chronological train/valid/test split (~70/15/15).
-
-    Boundaries are Monday 00:00 local time, counted back from the last Monday
-    midnight in the series, so valid/test cover full weekly cycles (DST adds or
-    removes an hour of rows). Train excludes the leading lag warm-up rows (NaN
-    features); the three slices are contiguous and cover the complete-case region.
-    """
+    """ Chronological train/valid/test split (~70/15/15 percent). """
     local = df["datetime_local"]
     mondays = np.flatnonzero(
         (local.dt.dayofweek == 0) & (local.dt.hour == 0) & (local.dt.minute == 0)
