@@ -621,6 +621,16 @@ the feature selection, the analyses and the test evaluation.
 The ablation follows the two steps of Section~\ref{sec:ablation_protocol}: the calendar features first (Table~\ref{tab:cal_ablation}),
 then the lags, with the hour as the only calendar feature (Table~\ref{tab:lag_ablation}). All fits are LightGBM under both losses.
 
+\paragraph{Calendar features (step 1).} Under the L1 loss, all calendar-only fits are the constant zero prediction (zero share 1.0),
+identical to the always-zero baseline, so they are \emph{not shown} here.
+Under L2, the hour alone carries nearly all of the calendar signal.
+The set \{hour, day of week\} is identical to the full calendar to four decimals, with and without lags, so for LightGBM
+the weekend indicator is redundant given the day of week. On top of all lags, every set containing the hour is within
+a tiny margin of the best set (hour plus all lags), whereas the sets without the hour 
+are worse on both metrics, close to the all-lags fit without any calendar feature (Table~\ref{tab:lag_ablation}, last row).
+In these fits the day of week therefore adds nothing measurable once the hour is present.
+% source: output/feature_ablation/summary.json -> calendar_only, calendar_plus_all_lags, lags_with_hour.*.all_lags_without_hour; output/baselines/summary.json -> baselines.{always_zero,always_mean}; differences computed from these values
+
 \begin{table}[h]
 \centering
 \small
@@ -645,17 +655,18 @@ Day of week + weekend & 0.9231 & 1.7759 & 0.4765 & 1.2680 & 0.3516 & 1.3504 \\
 \end{table}
 % source: output/feature_ablation/summary.json -> calendar_only, calendar_plus_all_lags
 
-\paragraph{Calendar features (step 1).} Under the L1 loss, all calendar-only fits are the constant zero prediction (zero share 1.0),
-identical to the always-zero baseline, so they are \emph{not shown} here.
-Under L2, the hour alone carries nearly all of the calendar signal.
-The set \{hour, day of week\} is identical to the full calendar to four decimals, with and without lags, so for LightGBM
-the weekend indicator is redundant given the day of week. On top of all lags, every set containing the hour is within
-a tiny margin of the best set (hour plus all lags), whereas the sets without the hour 
-show a decrease w.r.t. both metrics, close to the all-lags fit without any calendar feature (Table~\ref{tab:lag_ablation}, last row).
-In these fits the day of week therefore adds nothing measurable once the hour is present.
-% source: output/feature_ablation/summary.json -> calendar_only, calendar_plus_all_lags, lags_with_hour.*.all_lags_without_hour; output/baselines/summary.json -> baselines.{always_zero,always_mean}; differences computed from these values
 
-\begin{table}[t]
+\paragraph{Lags (step 2).} Under both losses, the dense immediate block is better than the sparse-hour set on both metrics
+Under L2, the sparse-hour set and persistence only are 6.4\% and 6.8\% worse in MAE than the immediate block.
+Persistence only (\texttt{lag\_1}) is close to the sparse-hour set, so most of the improvement comes with lags 2--15.
+Adding the hour-scale lags and then the seasonal lags to the immediate block changes MAE and RMSE by less than 0.2\% under L2 and
+by at most 0.0002 under L1. Without the hour, all lags are worse on both metrics and under both objectives.
+Persistence only, which sees the same last value as the persistence baseline plus the hour, improves on that baseline on both metrics under L1.
+Under L2, it improves on RMSE.
+% source: output/feature_ablation/summary.json -> lags_with_hour; output/baselines/summary.json -> baselines.persistence.{mae,rmse}; percentages and differences computed from these values
+
+
+\begin{table}[h]
 \centering
 \caption{Lag ablation (step~2), LightGBM including the hour as the only calendar feature (except last row);
 validation errors in L/min. Bold marks the best value per column.}
@@ -679,15 +690,6 @@ All lags, no hour (reference) & 0.4763 & 1.2683 & 0.3516 & 1.3504 \\
 \end{table}
 % source: output/feature_ablation/summary.json -> lags_with_hour
 
-\paragraph{Lags (step 2).} Under both losses, the dense immediate block is better than the sparse-hour set on both metrics
-Under L2, the sparse-hour set and persistence only are 6.4\% and 6.8\% worse in MAE than the immediate block.
-Persistence only (\texttt{lag\_1}) is close to the sparse-hour set, so most of the improvement comes with lags 2--15.
-Adding the hour-scale lags and then the seasonal lags to the immediate block changes MAE and RMSE by less than 0.2\% under L2 and
-by at most 0.0002 under L1. Without the hour, all lags are worse on both metrics and under both objectives.
-Persistence only, which sees the same last value as the persistence baseline plus the hour, improves on that baseline on both metrics under L1.
-Under L2, it improves on RMSE.
-% source: output/feature_ablation/summary.json -> lags_with_hour; output/baselines/summary.json -> baselines.persistence.{mae,rmse}; percentages and differences computed from these values
-
 \paragraph{Final feature set.} On top of the hour and lags 1--15, the hour-scale lags, the daily and weekly lags, the day of week
 and the weekend indicator add very little under both L2 and L1, whereas dropping lags 2--15 costs clearly.
 Following the principle of the simplest set within a negligible margin of the best set on both metrics and both losses,
@@ -699,9 +701,15 @@ The day of week therefore carries little information from the start, and once th
 almost nothing left for it to explain. A day-specific shape of the daily cycle, for example a later morning peak at weekends,
 could in principle still matter, but doing so did not improve the fit measurably.
 
-A plausible reason for the value of the dense block, not tested here, is that events last only a few minutes, so lags 2--15 tell the model how long the current event has been running and how much water has just been used, which a single lag cannot. That persistence only beats the persistence baseline under L1 although it sees the same last value suggests that part of the models' advantage lies in how they use that value, consistent with the damping described in Section~\ref{sec:comparison}.
+A plausible reason for the value of the dense block, not tested here, is that events last only a few minutes,
+so lags 2--15 tell the model how long the current event has been running and how much water has just been used,
+which a single lag cannot. That persistence only beats the persistence baseline under L1 although it sees the same
+last value suggests that part of the models' advantage lies in how they use that value.
 
-The daily and weekly lags add nothing beyond the hour and the short lags although the ACF has daily and weekly bumps. A plausible reason is that the hour already encodes the diurnal pattern and that the weekly pattern of this house is weak (Figure~\ref{fig:profiles}). Two results support this indirectly: under L2, the seasonal lags together with the hour score close to the hour alone, and the day of week alone scores close to the always-mean baseline.
+The daily and weekly lags add nothing beyond the hour and the short lags although the ACF has daily and weekly bumps.
+A plausible reason is that the hour already encodes that pattern and that the weekly pattern of this house is
+weak (Figure~\ref{fig:profiles}). Two results support this indirectly: under L2, the seasonal lags together with the hour
+score close to the hour alone, and the day of week alone scores close to the always-mean baseline.
 
 \section{Feature Importance}
 \label{sec:importance}
